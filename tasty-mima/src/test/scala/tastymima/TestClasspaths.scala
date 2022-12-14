@@ -25,4 +25,24 @@ object TestClasspaths:
 
   val (testLibV1Classpath, testLibV1Entry) = makeClasspathAndTestLibEntry(TestLibV1ClassPathEnvVar)
   val (testLibV2Classpath, testLibV2Entry) = makeClasspathAndTestLibEntry(TestLibV2ClassPathEnvVar)
+
+  def makeFilteredClasspaths(testLibPackageName: String): (Classpath, Classpath.Entry, Classpath, Classpath.Entry) =
+    val (v1Classpath, v1Entry) = makeFilteredClasspath(testLibPackageName, testLibV1Classpath, testLibV1Entry)
+    val (v2Classpath, v2Entry) = makeFilteredClasspath(testLibPackageName, testLibV2Classpath, testLibV2Entry)
+    (v1Classpath, v1Entry, v2Classpath, v2Entry)
+
+  private def makeFilteredClasspath(
+    testLibPackageName: String,
+    classpath: Classpath,
+    testLibEntry: Classpath.Entry
+  ): (Classpath, Classpath.Entry) =
+    val filteredEntry = Classpath.Entry(testLibEntry.packages.filter { p =>
+      p.dotSeparatedName == testLibPackageName || p.dotSeparatedName.startsWith(testLibPackageName + ".")
+    })
+    val filteredClasspath = Classpath(classpath.entries.map { entry =>
+      if entry == testLibEntry then filteredEntry
+      else entry
+    })
+    (filteredClasspath, filteredEntry)
+  end makeFilteredClasspath
 end TestClasspaths
