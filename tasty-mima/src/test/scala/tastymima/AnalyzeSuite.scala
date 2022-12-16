@@ -66,6 +66,15 @@ class AnalyzeSuite extends munit.FunSuite:
     )
   }
 
+  test("inheritance with member removals") {
+    val problems = problemsInPackage("inheritancememberremovals")
+
+    assertProblems(problems)(
+      PM.MissingTermMember("testlib.inheritancememberremovals.Child.fieldNotCoveredByParents"),
+      PM.MissingTermMember("testlib.inheritancememberremovals.Child.methodNotCoveredByParents")
+    )
+  }
+
   test("member kind changes") {
     import SymbolKind.*
 
