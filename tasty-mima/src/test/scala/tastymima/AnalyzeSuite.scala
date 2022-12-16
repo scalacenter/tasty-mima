@@ -10,6 +10,7 @@ import tastymima.Problems.*
 
 class AnalyzeSuite extends munit.FunSuite:
   import AnalyzeSuite.*
+  import ProblemMatcher as PM
 
   def problemsInPackage(packageName: String): List[Problem] =
     val fullPackageName = "testlib." + packageName.name
@@ -38,8 +39,59 @@ class AnalyzeSuite extends munit.FunSuite:
     val problems = problemsInPackage("missingclasses")
 
     assertProblems(problems)(
-      ProblemMatcher.MissingClass("testlib.missingclasses.ClassOnlyInV1"),
-      ProblemMatcher.MissingClass("testlib.missingclasses.ObjectContainer.ClassOnlyInV1")
+      PM.MissingClass("testlib.missingclasses.ClassOnlyInV1"),
+      PM.MissingClass("testlib.missingclasses.ObjectContainer.ClassOnlyInV1")
+    )
+  }
+
+  test("missing members") {
+    val problems = problemsInPackage("missingmembers")
+
+    assertProblems(problems)(
+      // Terms
+      PM.MissingTermMember("testlib.missingmembers.MissingMembers.removedVal"),
+      PM.MissingTermMember("testlib.missingmembers.MissingMembers.removedVar"),
+      PM.MissingTermMember("testlib.missingmembers.MissingMembers.removedVar_="),
+      PM.MissingTermMember("testlib.missingmembers.MissingMembers.removedDef"),
+      PM.MissingTermMember("testlib.missingmembers.MissingMembers.removedModule"),
+      PM.MissingTermMember("testlib.missingmembers.MissingMembers.removedLazyVal"),
+      // Module class
+      PM.MissingClass("testlib.missingmembers.MissingMembers.removedModule$"),
+      // Types
+      PM.MissingTypeMember("testlib.missingmembers.MissingMembers.removedTypeAlias"),
+      PM.MissingTypeMember("testlib.missingmembers.MissingMembers.removedAbstractType"),
+      PM.MissingTypeMember("testlib.missingmembers.MissingMembers.removedOpaqueTypeAlias")
+    )
+  }
+
+  test("member kind changes") {
+    import SymbolKind.*
+
+    val problems = problemsInPackage("memberkindchanges")
+
+    assertProblems(problems)(
+      // val to *
+      PM.IncompatibleKindChange("testlib.memberkindchanges.MemberKindChanges.valToVar", ValField, VarField),
+      PM.IncompatibleKindChange("testlib.memberkindchanges.MemberKindChanges.valToDef", ValField, Method),
+      PM.IncompatibleKindChange("testlib.memberkindchanges.MemberKindChanges.valToLazyVal", ValField, LazyValField),
+      // var to * -> the setters show up
+      PM.MissingTermMember("testlib.memberkindchanges.MemberKindChanges.varToVal_="),
+      PM.MissingTermMember("testlib.memberkindchanges.MemberKindChanges.varToDef_="),
+      PM.MissingTermMember("testlib.memberkindchanges.MemberKindChanges.varToModule_="),
+      PM.MissingTermMember("testlib.memberkindchanges.MemberKindChanges.varToLazyVal_="),
+      // module to *
+      PM.IncompatibleKindChange("testlib.memberkindchanges.MemberKindChanges.moduleToVal", Module, ValField),
+      PM.IncompatibleKindChange("testlib.memberkindchanges.MemberKindChanges.moduleToVar", Module, VarField),
+      PM.IncompatibleKindChange("testlib.memberkindchanges.MemberKindChanges.moduleToDef", Module, Method),
+      PM.IncompatibleKindChange("testlib.memberkindchanges.MemberKindChanges.moduleToLazyVal", Module, LazyValField),
+      // lazy val to *
+      PM.IncompatibleKindChange("testlib.memberkindchanges.MemberKindChanges.lazyValToVar", LazyValField, VarField),
+      PM.IncompatibleKindChange("testlib.memberkindchanges.MemberKindChanges.lazyValToDef", LazyValField, Method),
+      // side effects of module to *
+      PM.MissingClass("testlib.memberkindchanges.MemberKindChanges.moduleToVal$"),
+      PM.MissingClass("testlib.memberkindchanges.MemberKindChanges.moduleToVar$"),
+      PM.MissingClass("testlib.memberkindchanges.MemberKindChanges.moduleToDef$"),
+      PM.MissingClass("testlib.memberkindchanges.MemberKindChanges.moduleToLazyVal$")
     )
   }
 end AnalyzeSuite
@@ -54,5 +106,24 @@ object AnalyzeSuite:
         case Problem.MissingClass(info) => info.toString() == fullName
         case _                          => false
     end MissingClass
+
+    final case class MissingTypeMember(fullName: String) extends ProblemMatcher:
+      def apply(problem: Problem): Boolean = problem match
+        case Problem.MissingTypeMember(info) => info.toString() == fullName
+        case _                               => false
+    end MissingTypeMember
+
+    final case class MissingTermMember(fullName: String) extends ProblemMatcher:
+      def apply(problem: Problem): Boolean = problem match
+        case Problem.MissingTermMember(info) => info.toString() == fullName
+        case _                               => false
+    end MissingTermMember
+
+    final case class IncompatibleKindChange(fullName: String, oldKind: SymbolKind, newKind: SymbolKind)
+        extends ProblemMatcher:
+      def apply(problem: Problem): Boolean = problem match
+        case Problem.IncompatibleKindChange(info, `oldKind`, `newKind`) => info.toString() == fullName
+        case _                                                          => false
+    end IncompatibleKindChange
   end ProblemMatcher
 end AnalyzeSuite
