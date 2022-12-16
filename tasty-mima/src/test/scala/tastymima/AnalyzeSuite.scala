@@ -125,6 +125,17 @@ class AnalyzeSuite extends munit.FunSuite:
       PM.MissingTermMember("testlib.membertypechanges.MemberTypeChanges.varOtherType_=")
     )
   }
+
+  test("class type parameters") {
+    val problems = problemsInPackage("classtypeparams")
+
+    assertProblems(problems)(
+      PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParams.a3"),
+      PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParams.b3"),
+      PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParams.Inner.c4"),
+      PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParams.Inner.d4")
+    )
+  }
 end AnalyzeSuite
 
 object AnalyzeSuite:

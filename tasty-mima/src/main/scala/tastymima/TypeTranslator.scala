@@ -18,7 +18,11 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
           oldType.prefix match
             case oldPrefix: Type =>
               val translatedPrefix = translateType(oldPrefix)
-              NamedType(translatedPrefix, oldType.name)(using newCtx)
+              oldType.symbol(using oldCtx) match
+                case oldSym: ClassTypeParamSymbol =>
+                  translateClassTypeParamRef(translatedPrefix, oldSym)
+                case _ =>
+                  NamedType(translatedPrefix, oldType.name)(using newCtx)
             case NoPrefix =>
               throw NotImplementedError(s"cannot translate local ref $oldType")
 
@@ -40,7 +44,43 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
             mt => translateType(oldType.resultType)
           )
 
+        case oldType: PolyType =>
+          PolyType(oldType.paramNames)(
+            pt => {
+              translatedRecTypes.put(oldType, pt)
+              oldType.paramTypeBounds.map(translateTypeBounds(_))
+            },
+            pt => translateType(oldType.resultType)
+          )
+
+        case oldType: TypeParamRef =>
+          val translatedBinders = translatedRecTypes.get(oldType.binders).nn.asInstanceOf[TypeLambdaType]
+          TypeParamRef(translatedBinders, oldType.paramNum)
+
         case _ =>
-          throw NotImplementedError(oldType.toString())
+          throw NotImplementedError(s"$oldType of ${oldType.getClass()}")
   end translateType
+
+  private def translateTypeBounds(oldBounds: TypeBounds): TypeBounds = oldBounds match
+    case RealTypeBounds(low, high) => RealTypeBounds(translateType(low), translateType(high))
+    case TypeAlias(alias)          => TypeAlias(translateType(alias))
+  end translateTypeBounds
+
+  private def translateClassTypeParamRef(translatedPrefix: Type, oldSym: ClassTypeParamSymbol): TypeRef =
+    val typeParamIndex = withOldCtx {
+      oldSym.owner.typeParams.indexOf(oldSym)
+    }
+    val translatedSym = withNewCtx {
+      translatedPrefix match
+        case translatedPrefix: ThisType =>
+          translatedPrefix.cls.typeParams(typeParamIndex)
+        case _ =>
+          throw NotImplementedError(s"cannot translate class type param ref with non-this prefix $translatedPrefix")
+    }
+    TypeRef(translatedPrefix, translatedSym)
+  end translateClassTypeParamRef
+
+  private def withOldCtx[A](f: Context ?=> A): A = f(using oldCtx)
+
+  private def withNewCtx[A](f: Context ?=> A): A = f(using newCtx)
 end TypeTranslator
