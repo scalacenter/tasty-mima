@@ -17,7 +17,9 @@ class AnalyzeSuite extends munit.FunSuite:
     val classpaths = TestClasspaths.makeFilteredClasspaths(fullPackageName)
     TastyMiMa.analyze(classpaths._1, classpaths._2, classpaths._3, classpaths._4)
 
-  def assertProblems(actualProblems: List[Problem])(expectedProblemMatchers: ProblemMatcher*): Unit =
+  def assertProblems(using munit.Location)(actualProblems: List[Problem])(
+    expectedProblemMatchers: ProblemMatcher*
+  ): Unit =
     val remainingMatchers = mutable.ListBuffer.from(expectedProblemMatchers)
     val unexpectedProblems = mutable.ListBuffer.empty[Problem]
     for actualProblem <- actualProblems do
@@ -94,6 +96,26 @@ class AnalyzeSuite extends munit.FunSuite:
       PM.MissingClass("testlib.memberkindchanges.MemberKindChanges.moduleToLazyVal$")
     )
   }
+
+  test("member type changes") {
+    val problems = problemsInPackage("membertypechanges")
+
+    assertProblems(problems)(
+      // Simple term members
+      PM.IncompatibleTypeChange("testlib.membertypechanges.MemberTypeChanges.valOtherType"),
+      PM.IncompatibleTypeChange("testlib.membertypechanges.MemberTypeChanges.varOtherType"),
+      PM.IncompatibleTypeChange("testlib.membertypechanges.MemberTypeChanges.defOtherType"),
+      PM.IncompatibleTypeChange("testlib.membertypechanges.MemberTypeChanges.lazyValOtherType"),
+      // Method members whose change of result type causes a signature change -> they disappear
+      PM.MissingTermMember("testlib.membertypechanges.MemberTypeChanges.methodSubResultType"),
+      PM.MissingTermMember("testlib.membertypechanges.MemberTypeChanges.methodOtherResultType"),
+      // Method members that keep the same signature despite different result types
+      PM.IncompatibleTypeChange("testlib.membertypechanges.MemberTypeChanges.methodSameSigOtherResultType"),
+      // Side effects of changing the type of a var
+      PM.MissingTermMember("testlib.membertypechanges.MemberTypeChanges.varSubType_="),
+      PM.MissingTermMember("testlib.membertypechanges.MemberTypeChanges.varOtherType_=")
+    )
+  }
 end AnalyzeSuite
 
 object AnalyzeSuite:
@@ -125,5 +147,11 @@ object AnalyzeSuite:
         case Problem.IncompatibleKindChange(info, `oldKind`, `newKind`) => info.toString() == fullName
         case _                                                          => false
     end IncompatibleKindChange
+
+    final case class IncompatibleTypeChange(fullName: String) extends ProblemMatcher:
+      def apply(problem: Problem): Boolean = problem match
+        case Problem.IncompatibleTypeChange(info) => info.toString() == fullName
+        case _                                    => false
+    end IncompatibleTypeChange
   end ProblemMatcher
 end AnalyzeSuite
