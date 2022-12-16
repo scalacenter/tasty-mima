@@ -101,7 +101,12 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
     else () // TODO
   end analyzeTypeMember
 
-  private def analyzeTermMember(oldPrefix: Type, oldSym: TermSymbol, newPrefix: Type, newSym: TermSymbol): Unit =
+  private def analyzeTermMember(
+    oldPrefix: ThisType,
+    oldSym: TermSymbol,
+    newPrefix: ThisType,
+    newSym: TermSymbol
+  ): Unit =
     checkVisibility(oldSym, newSym)
 
     val oldKind = symKind(oldSym)(using oldCtx)
@@ -121,8 +126,24 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
     end kindsOK
 
     if !kindsOK then reportIncompatibleKindChange(oldSym, oldKind, newKind)
-    else () // TODO
+    else
+      val oldType = withOldCtx(oldSym.declaredType.widenExpr)
+      val translatedOldType = translateType(oldType)
+      val newType = withNewCtx(newSym.declaredType.widenExpr.asSeenFrom(newPrefix, newSym.owner))
+
+      val isCompatible = withNewCtx {
+        (translatedOldType, newType) match
+          case (translatedOldType: MethodicType, newType: MethodicType) =>
+            isSubMethodType(newType, translatedOldType)
+          case _ =>
+            newType.isSubtype(translatedOldType)
+      }
+
+      if !isCompatible then reportProblem(Problem.IncompatibleTypeChange(symInfo(oldSym)(using oldCtx)))
   end analyzeTermMember
+
+  private def translateType(oldType: Type): Type =
+    new TypeTranslator(oldCtx, newCtx).translateType(oldType)
 
   private def withOldCtx[A](f: Context ?=> A): A = f(using oldCtx)
 
@@ -189,4 +210,17 @@ private[tastymima] object Analyzer:
         case owner                  => throw AssertionError(s"Unexpected owner $owner in pathOf($symbol)")
       pathOf(owner) :+ symbol.name
   end pathOf
+
+  /** Check that `tp1.matches(tp2)` and that the result type of `tp1` is a subtype of that of `tp2`. */
+  private def isSubMethodType(tp1: Type, tp2: Type)(using Context): Boolean =
+    tp1.matches(tp2) && isSubFinalResultType(tp1, tp2)
+
+  private def isSubFinalResultType(tp1: Type, tp2: Type)(using Context): Boolean = (tp1.widen, tp2.widen) match
+    case (tp1: MethodType, tp2: MethodType) =>
+      isSubFinalResultType(tp1.resultType, tp2.instantiate(tp1.paramRefs))
+    case (tp1: PolyType, tp2: PolyType) =>
+      isSubFinalResultType(tp1.resultType, tp2.instantiate(tp1.paramRefs))
+    case _ =>
+      tp1.isSubtype(tp2)
+  end isSubFinalResultType
 end Analyzer

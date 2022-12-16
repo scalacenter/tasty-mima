@@ -9,6 +9,7 @@ object Problems:
     case MissingTermMember(info: SymbolInfo)
     case SymbolNotAccessible(info: SymbolInfo)
     case IncompatibleKindChange(info: SymbolInfo, oldKind: SymbolKind, newKind: SymbolKind)
+    case IncompatibleTypeChange(info: SymbolInfo)
   end Problem
 
   enum SymbolKind:
