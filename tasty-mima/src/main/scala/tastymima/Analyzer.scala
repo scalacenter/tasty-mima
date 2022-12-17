@@ -45,6 +45,10 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
   private def analyzeClass(oldClass: ClassSymbol, newClass: ClassSymbol): Unit =
     checkVisibility(oldClass, newClass)
 
+    if oldClass.typeParams(using oldCtx).sizeCompare(newClass.typeParams(using newCtx)) != 0 then
+      reportProblem(Problem.TypeArgumentCountMismatch(classInfo(oldClass)(using oldCtx)))
+      return // things can severely break further down, in that case
+
     val oldThisType = classThisType(oldClass)(using oldCtx)
     val newThisType = classThisType(newClass)(using newCtx)
 

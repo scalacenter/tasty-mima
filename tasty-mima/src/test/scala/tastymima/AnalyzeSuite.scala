@@ -125,6 +125,18 @@ class AnalyzeSuite extends munit.FunSuite:
       PM.MissingTermMember("testlib.membertypechanges.MemberTypeChanges.varOtherType_=")
     )
   }
+
+  test("class type parameters") {
+    val problems = problemsInPackage("classtypeparams")
+
+    assertProblems(problems)(
+      PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParams.a3"),
+      PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParams.b3"),
+      PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParams.Inner.c4"),
+      PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParams.Inner.d4"),
+      PM.TypeArgumentCountMismatch("testlib.classtypeparams.ClassTypeParams.ArgCountMismatch")
+    )
+  }
 end AnalyzeSuite
 
 object AnalyzeSuite:
@@ -156,6 +168,12 @@ object AnalyzeSuite:
         case Problem.IncompatibleKindChange(info, `oldKind`, `newKind`) => info.toString() == fullName
         case _                                                          => false
     end IncompatibleKindChange
+
+    final case class TypeArgumentCountMismatch(fullName: String) extends ProblemMatcher:
+      def apply(problem: Problem): Boolean = problem match
+        case Problem.TypeArgumentCountMismatch(info) => info.toString() == fullName
+        case _                                       => false
+    end TypeArgumentCountMismatch
 
     final case class IncompatibleTypeChange(fullName: String) extends ProblemMatcher:
       def apply(problem: Problem): Boolean = problem match
