@@ -1,10 +1,5 @@
 package testlib.membertypechanges
 
-/* tasty-query does not correctly deal with APPLIEDtpt for polymorphic type
- * aliases, so we make sure to directly refer to the final class type.
- */
-import scala.collection.immutable.List
-
 final class MemberTypeChanges:
   val valSameType: Int = 1
   var varSameType: Int = 1
