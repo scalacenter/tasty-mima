@@ -137,6 +137,47 @@ class AnalyzeSuite extends munit.FunSuite:
       PM.TypeArgumentCountMismatch("testlib.classtypeparams.ClassTypeParams.ArgCountMismatch")
     )
   }
+
+  test("type translations") {
+    val problems = problemsInPackage("typetranslations")
+
+    assertProblems(problems)(
+      // TypeRef
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.namedTypeRefChanged"),
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.typeMemberChanged"),
+      // TermRef
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.namedTermRefChanged"),
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.termMemberChanged"),
+      // PackageRef
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.packageRefChanged"),
+      // ThisType
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.thisTypeChanged"),
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.enclosingThisTypeChanged"),
+      // SuperType
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.superTypeChanged"),
+      // ConstantType
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.constantTypeChanged"),
+      // AppliedType
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.appliedTypeTyconChanged"),
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.appliedTypeArgsChanged"),
+      // ExprType
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.exprTypeChanged"),
+      // MethodType + TermParamRef
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.methodTypeChanged"),
+      // PolyType + TypeParamRef
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.polyTypeChanged"),
+      // TypeLambda + TypeParamRef -- translated, but need to check TypeMembers for this to show up
+      //PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.typeLambdaChanged"),
+      // AnnotatedType
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.annotatedTypeChanged"),
+      // WildcardTypeBounds
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.wildcardTypeBoundsChanged"),
+      // OrType
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.orTypeChanged"),
+      // AndType
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.andTypeChanged")
+    )
+  }
 end AnalyzeSuite
 
 object AnalyzeSuite:
