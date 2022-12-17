@@ -21,4 +21,9 @@ final class ClassTypeParams[A, B <: Product](_a: A, _b: B):
     val c4: C = _c
     val d4: D = _d
   end Inner
+
+  final class ArgCountMismatch[X, Y](_x: X, _y: Y):
+    val x: X = _x
+    val y: Y = _y
+  end ArgCountMismatch
 end ClassTypeParams

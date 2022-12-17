@@ -67,6 +67,7 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
   end translateTypeBounds
 
   private def translateClassTypeParamRef(translatedPrefix: Type, oldSym: ClassTypeParamSymbol): TypeRef =
+    // We know that class type param counts match because of a check in `analyzeClass`
     val typeParamIndex = withOldCtx {
       oldSym.owner.typeParams.indexOf(oldSym)
     }
