@@ -1,5 +1,7 @@
 package tastymima
 
+import scala.annotation.tailrec
+
 import scala.collection.mutable
 
 import tastyquery.Contexts.*
@@ -32,7 +34,10 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
     _problems += problem
 
   private def analyzeTopClass(oldTopClass: ClassSymbol): Unit =
-    if !isAccessible(oldTopClass)(using oldCtx) then () // OK
+    val oldVisibility = symVisibility(oldTopClass)(using oldCtx)
+    val isTopAccessible = oldVisibility != Visibility.Private && oldVisibility != Visibility.Protected
+
+    if !isTopAccessible then () // OK
     else
       val path = oldTopClass.fullName.path
       invalidStructureToOption(newCtx.findSymbolFromRoot(path).asClass) match
@@ -52,8 +57,16 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
     val oldThisType = classThisType(oldClass)(using oldCtx)
     val newThisType = classThisType(newClass)(using newCtx)
 
+    val oldIsFullySealed = classIsFullySealed(oldClass)(using oldCtx)
+
     for oldDecl <- oldClass.declarations(using oldCtx) do
-      if !isAccessible(oldDecl)(using oldCtx) then () // OK
+      val oldVisibility = symVisibility(oldDecl)(using oldCtx)
+      val isMemberAccessible = oldVisibility match
+        case Visibility.Private   => false
+        case Visibility.Protected => !oldIsFullySealed
+        case _                    => true
+
+      if !isMemberAccessible then () // OK
       else
         oldDecl match
           case oldDecl: ClassSymbol =>
@@ -163,9 +176,45 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
   ): Unit =
     reportProblem(Problem.IncompatibleKindChange(symInfo(oldSymbol)(using oldCtx), oldKind, newKind))
 
-  private def checkVisibility(oldSymbol: Symbol, newSymbol: Symbol): Unit =
-    if !isAccessible(newSymbol)(using newCtx) then
-      reportProblem(Problem.SymbolNotAccessible(SymbolInfo(pathOf(newSymbol))))
+  private def checkVisibility(oldSymbol: TermOrTypeSymbol, newSymbol: TermOrTypeSymbol): Unit =
+    val oldVisibility = symVisibility(oldSymbol)(using oldCtx)
+    val newVisibility = symVisibility(newSymbol)(using newCtx)
+
+    if !isValidVisibilityChange(oldVisibility, newVisibility) then
+      reportProblem(Problem.RestrictedVisibilityChange(SymbolInfo(pathOf(newSymbol)), oldVisibility, newVisibility))
+  end checkVisibility
+
+  private def isValidVisibilityChange(oldVisibility: Visibility, newVisibility: Visibility): Boolean =
+    import Visibility.*
+
+    @tailrec
+    def isValidPathChange(oldPath: List[Name], newPath: List[Name]): Boolean = (oldPath, newPath) match
+      case (oldPathHead :: oldPathTail, newPathHead :: newPathTail) =>
+        oldPathHead == newPathHead && isValidPathChange(oldPathTail, newPathTail)
+      case (_, _ :: _) =>
+        false
+      case (_, Nil) =>
+        true
+    end isValidPathChange
+
+    (oldVisibility, newVisibility) match
+      case _ if oldVisibility == newVisibility => true
+
+      case (_, Public)  => true
+      case (Private, _) => true // for completeness, but dead code in practice
+
+      case (PackagePrivate(oldPath), PackagePrivate(newPath)) =>
+        isValidPathChange(oldPath.path, newPath.path)
+      case (PackagePrivate(oldPath), PackageProtected(newPath)) =>
+        isValidPathChange(oldPath.path, newPath.path)
+
+      case (Protected, PackageProtected(_)) => true
+
+      case (PackageProtected(oldPath), PackageProtected(newPath)) =>
+        isValidPathChange(oldPath.path, newPath.path)
+
+      case _ => false
+  end isValidVisibilityChange
 end Analyzer
 
 private[tastymima] object Analyzer:
@@ -187,6 +236,28 @@ private[tastymima] object Analyzer:
 
   def classInfo(symbol: Symbol)(using Context): ClassInfo =
     ClassInfo(pathOf(symbol))
+
+  def classIsFullySealed(cls: ClassSymbol)(using Context): Boolean =
+    // TODO Be smarter; currently we only check `final`
+    cls.is(Final)
+
+  def symVisibility(symbol: TermOrTypeSymbol)(using Context): Visibility =
+    if symbol.is(Private) then Visibility.Private
+    else if symbol.is(Protected) then
+      symbol.privateWithin match
+        case None =>
+          Visibility.Protected
+        case Some(within) =>
+          if within.isPackage then Visibility.PackageProtected(symInfo(within))
+          else Visibility.Protected
+    else
+      symbol.privateWithin match
+        case None =>
+          Visibility.Public
+        case Some(within) =>
+          if within.isPackage then Visibility.PackagePrivate(symInfo(within))
+          else Visibility.Private
+  end symVisibility
 
   def symKind(symbol: TermOrTypeSymbol)(using Context): SymbolKind = symbol match
     case sym: TermSymbol =>

@@ -1,0 +1,13 @@
+package testlib.visibilitychanges
+
+class TopClassProtectedToPublic
+
+private class TopClassPublicToPrivate
+
+private[visibilitychanges] class TopClassPublicToPackagePrivate
+
+class TopClassPublicToPublic
+
+private[testlib] class TopClassPackagePrivateToOuterPackagePrivate
+
+private[visibilitychanges] class TopClassOuterPackagePrivateToPackagePrivate

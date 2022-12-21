@@ -7,11 +7,26 @@ object Problems:
     case MissingClass(oldClass: ClassInfo)
     case MissingTypeMember(info: SymbolInfo)
     case MissingTermMember(info: SymbolInfo)
-    case SymbolNotAccessible(info: SymbolInfo)
+    case RestrictedVisibilityChange(info: SymbolInfo, oldVisibility: Visibility, newVisibility: Visibility)
     case IncompatibleKindChange(info: SymbolInfo, oldKind: SymbolKind, newKind: SymbolKind)
     case TypeArgumentCountMismatch(info: ClassInfo)
     case IncompatibleTypeChange(info: SymbolInfo)
   end Problem
+
+  /** Visibility of a symbol, from the API point of view.
+    *
+    * Note that any qualified-private with a scope narrower than a package is
+    * considered full `private` from the API point of view. Likewise, any
+    * qualified-protected with a scope narrower than a package is considered
+    * full `protected`.
+    */
+  enum Visibility:
+    case Private
+    case PackagePrivate(scopeInfo: SymbolInfo)
+    case Protected
+    case PackageProtected(scopeInfo: SymbolInfo)
+    case Public
+  end Visibility
 
   enum SymbolKind:
     case Class, TypeAlias, AbstractTypeMember, OpaqueTypeAlias, TypeParam
