@@ -178,6 +178,97 @@ class AnalyzeSuite extends munit.FunSuite:
       PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.andTypeChanged")
     )
   }
+
+  test("visibility changes") {
+    val problems = problemsInPackage("visibilitychanges")
+
+    val termPairsWithProblems: List[(String, String)] = List(
+      // From package-private
+      "PackagePrivate" -> "Private",
+      "PackagePrivate" -> "InnerQualPrivate",
+      "PackagePrivate" -> "OuterQualPrivate",
+      "PackagePrivate" -> "Protected",
+      "PackagePrivate" -> "InnerQualProtected",
+      "PackagePrivate" -> "OuterQualProtected",
+      // From outer-package-private
+      "OuterPackagePrivate" -> "Private",
+      "OuterPackagePrivate" -> "InnerQualPrivate",
+      "OuterPackagePrivate" -> "OuterQualPrivate",
+      "OuterPackagePrivate" -> "PackagePrivate",
+      "OuterPackagePrivate" -> "Protected",
+      "OuterPackagePrivate" -> "InnerQualProtected",
+      "OuterPackagePrivate" -> "OuterQualProtected",
+      "OuterPackagePrivate" -> "PackageProtected",
+      // From protected
+      "Protected" -> "Private",
+      "Protected" -> "InnerQualPrivate",
+      "Protected" -> "OuterQualPrivate",
+      "Protected" -> "PackagePrivate",
+      "Protected" -> "OuterPackagePrivate",
+      // From inner-qual-protected
+      "InnerQualProtected" -> "Private",
+      "InnerQualProtected" -> "InnerQualPrivate",
+      "InnerQualProtected" -> "OuterQualPrivate",
+      "InnerQualProtected" -> "PackagePrivate",
+      "InnerQualProtected" -> "OuterPackagePrivate",
+      // From outer-qual-protected
+      "OuterQualProtected" -> "Private",
+      "OuterQualProtected" -> "InnerQualPrivate",
+      "OuterQualProtected" -> "OuterQualPrivate",
+      "OuterQualProtected" -> "PackagePrivate",
+      "OuterQualProtected" -> "OuterPackagePrivate",
+      // From package-protected
+      "PackageProtected" -> "Private",
+      "PackageProtected" -> "InnerQualPrivate",
+      "PackageProtected" -> "OuterQualPrivate",
+      "PackageProtected" -> "PackagePrivate",
+      "PackageProtected" -> "OuterPackagePrivate",
+      "PackageProtected" -> "Protected",
+      "PackageProtected" -> "InnerQualProtected",
+      "PackageProtected" -> "OuterQualProtected",
+      // From outer-package-protected
+      "OuterPackageProtected" -> "Private",
+      "OuterPackageProtected" -> "InnerQualPrivate",
+      "OuterPackageProtected" -> "OuterQualPrivate",
+      "OuterPackageProtected" -> "PackagePrivate",
+      "OuterPackageProtected" -> "OuterPackagePrivate",
+      "OuterPackageProtected" -> "Protected",
+      "OuterPackageProtected" -> "InnerQualProtected",
+      "OuterPackageProtected" -> "OuterQualProtected",
+      "OuterPackageProtected" -> "PackageProtected",
+      // From public
+      "Public" -> "Private",
+      "Public" -> "InnerQualPrivate",
+      "Public" -> "OuterQualPrivate",
+      "Public" -> "PackagePrivate",
+      "Public" -> "OuterPackagePrivate",
+      "Public" -> "Protected",
+      "Public" -> "InnerQualProtected",
+      "Public" -> "OuterQualProtected",
+      "Public" -> "PackageProtected",
+      "Public" -> "OuterPackageProtected"
+    )
+
+    val termExpectedProblems =
+      for (before, after) <- termPairsWithProblems
+      yield PM.RestrictedVisibilityChange(s"testlib.visibilitychanges.VisibilityChanges.Inner.term${before}To$after")
+
+    val otherExpectedProblems = List(
+      // Member types, classes and objects
+      PM.RestrictedVisibilityChange("testlib.visibilitychanges.VisibilityChanges.Inner.typePublicToPrivate"),
+      PM.RestrictedVisibilityChange("testlib.visibilitychanges.VisibilityChanges.Inner.ClassPublicToPrivate"),
+      PM.RestrictedVisibilityChange("testlib.visibilitychanges.VisibilityChanges.Inner.ObjectPublicToPrivate"),
+      PM.RestrictedVisibilityChange("testlib.visibilitychanges.VisibilityChanges.Inner.ObjectPublicToPrivate$"),
+      // Top-level classes
+      PM.RestrictedVisibilityChange("testlib.visibilitychanges.TopClassPublicToPrivate"),
+      PM.RestrictedVisibilityChange("testlib.visibilitychanges.TopClassPublicToPackagePrivate"),
+      PM.RestrictedVisibilityChange("testlib.visibilitychanges.TopClassOuterPackagePrivateToPackagePrivate")
+    )
+
+    val allExpectedProblems = termExpectedProblems ::: otherExpectedProblems
+
+    assertProblems(problems)(allExpectedProblems*)
+  }
 end AnalyzeSuite
 
 object AnalyzeSuite:
@@ -202,6 +293,12 @@ object AnalyzeSuite:
         case Problem.MissingTermMember(info) => info.toString() == fullName
         case _                               => false
     end MissingTermMember
+
+    final case class RestrictedVisibilityChange(fullName: String) extends ProblemMatcher:
+      def apply(problem: Problem): Boolean = problem match
+        case Problem.RestrictedVisibilityChange(info, _, _) => info.toString() == fullName
+        case _                                              => false
+    end RestrictedVisibilityChange
 
     final case class IncompatibleKindChange(fullName: String, oldKind: SymbolKind, newKind: SymbolKind)
         extends ProblemMatcher:
