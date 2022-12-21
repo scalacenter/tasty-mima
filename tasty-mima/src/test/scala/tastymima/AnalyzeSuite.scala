@@ -106,6 +106,22 @@ class AnalyzeSuite extends munit.FunSuite:
     )
   }
 
+  test("open level changes") {
+    import OpenLevel.*
+
+    val problems = problemsInPackage("openlevelchanges")
+
+    assertProblems(problems)(
+      // From default
+      PM.RestrictedOpenLevelChange("testlib.openlevelchanges.OpenLevelChanges.DefaultToFinal", Default, Final),
+      PM.RestrictedOpenLevelChange("testlib.openlevelchanges.OpenLevelChanges.DefaultToSealed", Default, Sealed),
+      // From open
+      PM.RestrictedOpenLevelChange("testlib.openlevelchanges.OpenLevelChanges.OpenToFinal", Open, Final),
+      PM.RestrictedOpenLevelChange("testlib.openlevelchanges.OpenLevelChanges.OpenToSealed", Open, Sealed),
+      PM.RestrictedOpenLevelChange("testlib.openlevelchanges.OpenLevelChanges.OpenToDefault", Open, Default)
+    )
+  }
+
   test("member type changes") {
     val problems = problemsInPackage("membertypechanges")
 
@@ -306,6 +322,13 @@ object AnalyzeSuite:
         case Problem.IncompatibleKindChange(info, `oldKind`, `newKind`) => info.toString() == fullName
         case _                                                          => false
     end IncompatibleKindChange
+
+    final case class RestrictedOpenLevelChange(fullName: String, oldLevel: OpenLevel, newLevel: OpenLevel)
+        extends ProblemMatcher:
+      def apply(problem: Problem): Boolean = problem match
+        case Problem.RestrictedOpenLevelChange(info, `oldLevel`, `newLevel`) => info.toString() == fullName
+        case _                                                               => false
+    end RestrictedOpenLevelChange
 
     final case class TypeArgumentCountMismatch(fullName: String) extends ProblemMatcher:
       def apply(problem: Problem): Boolean = problem match

@@ -54,6 +54,8 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
       reportProblem(Problem.TypeArgumentCountMismatch(classInfo(oldClass)(using oldCtx)))
       return // things can severely break further down, in that case
 
+    checkOpenLevel(oldClass, newClass)
+
     val oldThisType = classThisType(oldClass)(using oldCtx)
     val newThisType = classThisType(newClass)(using newCtx)
 
@@ -101,6 +103,21 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
               case Some(newDecl) =>
                 analyzeTermMember(oldThisType, oldDecl, newThisType, newDecl.asInstanceOf[TermSymbol])
   end analyzeClass
+
+  private def checkOpenLevel(oldClass: ClassSymbol, newClass: ClassSymbol): Unit =
+    val oldOpenLevel = classOpenLevel(oldClass)(using oldCtx)
+    val newOpenLevel = classOpenLevel(newClass)(using newCtx)
+
+    val isCompatible = (oldOpenLevel, newOpenLevel) match
+      case (OpenLevel.Final, _)                                    => true
+      case (OpenLevel.Sealed, _)                                   => true
+      case (OpenLevel.Default, OpenLevel.Default | OpenLevel.Open) => true
+      case (OpenLevel.Open, OpenLevel.Open)                        => true
+      case _                                                       => false
+
+    if !isCompatible then
+      reportProblem(Problem.RestrictedOpenLevelChange(classInfo(oldClass)(using oldCtx), oldOpenLevel, newOpenLevel))
+  end checkOpenLevel
 
   private def analyzeTypeMember(
     oldPrefix: Type,
@@ -276,6 +293,13 @@ private[tastymima] object Analyzer:
     case _: TypeParamSymbol =>
       SymbolKind.TypeParam
   end symKind
+
+  private def classOpenLevel(cls: ClassSymbol)(using Context): OpenLevel =
+    if cls.is(Final) then OpenLevel.Final
+    else if cls.is(Sealed) then OpenLevel.Sealed
+    else if cls.is(Open) then OpenLevel.Open
+    else OpenLevel.Default
+  end classOpenLevel
 
   def pathOf(symbol: Symbol): List[Name] =
     if symbol.isRoot then Nil
