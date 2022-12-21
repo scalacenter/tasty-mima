@@ -1,6 +1,6 @@
 package testlib.memberkindchanges
 
-class MemberKindChanges:
+final class MemberKindChanges:
   val valToVal: Int = 1
   var valToVar: Int = 1
   object valToModule

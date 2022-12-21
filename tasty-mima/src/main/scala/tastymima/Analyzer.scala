@@ -5,6 +5,7 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 
 import tastyquery.Contexts.*
+import tastyquery.Exceptions.*
 import tastyquery.Flags.*
 import tastyquery.Names.*
 import tastyquery.Symbols.*
@@ -59,17 +60,19 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
     val oldThisType = classThisType(oldClass)(using oldCtx)
     val newThisType = classThisType(newClass)(using newCtx)
 
-    val oldIsFullySealed = classIsFullySealed(oldClass)(using oldCtx)
+    val openBoundary = classOpenBoundary(oldClass)(using oldCtx)
 
     for oldDecl <- oldClass.declarations(using oldCtx) do
       val oldVisibility = symVisibility(oldDecl)(using oldCtx)
       val isMemberAccessible = oldVisibility match
         case Visibility.Private   => false
-        case Visibility.Protected => !oldIsFullySealed
+        case Visibility.Protected => openBoundary.nonEmpty
         case _                    => true
 
       if !isMemberAccessible then () // OK
       else
+        def oldIsOverridable = memberIsOverridable(oldDecl, openBoundary)(using oldCtx)
+
         oldDecl match
           case oldDecl: ClassSymbol =>
             newClass.getDecl(oldDecl.name)(using newCtx) match
@@ -85,7 +88,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
               case None =>
                 reportProblem(Problem.MissingTypeMember(symInfo(oldDecl)(using oldCtx)))
               case Some(newDecl: TypeMemberSymbol) =>
-                analyzeTypeMember(oldThisType, oldDecl, newThisType, newDecl)
+                analyzeTypeMember(oldThisType, oldDecl, oldIsOverridable, newThisType, newDecl)
               case Some(newDecl) =>
                 reportIncompatibleKindChange(oldDecl, newDecl.asInstanceOf[TermOrTypeSymbol])
 
@@ -101,7 +104,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
               case None =>
                 reportProblem(Problem.MissingTermMember(symInfo(oldDecl)(using oldCtx)))
               case Some(newDecl) =>
-                analyzeTermMember(oldThisType, oldDecl, newThisType, newDecl.asInstanceOf[TermSymbol])
+                analyzeTermMember(oldThisType, oldDecl, oldIsOverridable, newThisType, newDecl.asInstanceOf[TermSymbol])
   end analyzeClass
 
   private def checkOpenLevel(oldClass: ClassSymbol, newClass: ClassSymbol): Unit =
@@ -122,6 +125,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
   private def analyzeTypeMember(
     oldPrefix: Type,
     oldSym: TypeMemberSymbol,
+    oldIsOverridable: Boolean,
     newPrefix: Type,
     newSym: TypeMemberSymbol
   ): Unit =
@@ -138,6 +142,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
   private def analyzeTermMember(
     oldPrefix: ThisType,
     oldSym: TermSymbol,
+    oldIsOverridable: Boolean,
     newPrefix: ThisType,
     newSym: TermSymbol
   ): Unit =
@@ -166,11 +171,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
       val newType = withNewCtx(newSym.declaredType.widenExpr.asSeenFrom(newPrefix, newSym.owner))
 
       val isCompatible = withNewCtx {
-        (translatedOldType, newType) match
-          case (translatedOldType: MethodicType, newType: MethodicType) =>
-            isSubMethodType(newType, translatedOldType)
-          case _ =>
-            newType.isSubtype(translatedOldType)
+        isCompatibleTypeChange(translatedOldType, newType, allowSubtype = !oldIsOverridable)
       }
 
       if !isCompatible then reportProblem(Problem.IncompatibleTypeChange(symInfo(oldSym)(using oldCtx)))
@@ -232,6 +233,32 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
 
       case _ => false
   end isValidVisibilityChange
+
+  private val openBoundaryMemoized = mutable.AnyRefMap.empty[ClassSymbol, Set[ClassSymbol]]
+
+  /** Returns the "open boundary" of a class.
+    *
+    * A class `B` is in the open boundary of `A` (`cls`) iff all of the following apply:
+    *
+    * - `B` is open (or with default openness), and
+    * - `B` is a subclass of `A` (incl. reflexivity and transitivy), and
+    * - `B == A`, or all the classes from `B` excluded to `A` included are `sealed`.
+    *
+    * When analyzing a member of `cls`, it can be considered effectively final
+    * if it is final in all the classes that belong to the open boundary of
+    * `cls`.
+    *
+    * If the open boundary of a class is empty, all its protected members can
+    * be considered private.
+    */
+  private def classOpenBoundary(cls: ClassSymbol)(using Context): Set[ClassSymbol] =
+    def compute: Set[ClassSymbol] =
+      if cls.is(Final) then Set.empty
+      else if cls.is(Sealed) then sealedClassChildren(cls).flatMap(classOpenBoundary(_))
+      else Set(cls)
+
+    openBoundaryMemoized.getOrElseUpdate(cls, compute)
+  end classOpenBoundary
 end Analyzer
 
 private[tastymima] object Analyzer:
@@ -254,9 +281,43 @@ private[tastymima] object Analyzer:
   def classInfo(symbol: Symbol)(using Context): ClassInfo =
     ClassInfo(pathOf(symbol))
 
-  def classIsFullySealed(cls: ClassSymbol)(using Context): Boolean =
-    // TODO Be smarter; currently we only check `final`
-    cls.is(Final)
+  /** The list of direct children of the sealed class `cls`. */
+  private def sealedClassChildren(cls: ClassSymbol)(using Context): Set[ClassSymbol] =
+    // This should probably be provided directly by tasty-query
+
+    import tastyquery.Trees.*
+
+    val ChildAnnot = ctx.findTopLevelClass("scala.annotation.internal.Child")
+    val childrenList = for annot <- cls.getAnnotations(ChildAnnot) yield annot.tree match
+      case tree @ Apply(TypeApply(Select(New(_), _), tpt :: Nil), _) =>
+        tpt.toType match
+          case childRef: TypeRef if childRef.symbol.isClass =>
+            childRef.symbol.asClass
+          case _ =>
+            throw InvalidProgramStructureException(s"Unexpected child annotation tree $tree")
+      case tree =>
+        throw InvalidProgramStructureException(s"Unexpected child annotation tree $tree")
+
+    childrenList.toSet
+  end sealedClassChildren
+
+  /** Tests whether the given member is overridable from outside the library. */
+  private def memberIsOverridable(symbol: TermOrTypeSymbol, ownerClassOpenBoundary: Set[ClassSymbol])(
+    using Context
+  ): Boolean =
+    if symbol.isClass || symbol.isAnyOf(Final | Private) || symbol.name == nme.Constructor then
+      // Fast path
+      false
+    else
+      ownerClassOpenBoundary.exists { openSubclass =>
+        val overridingSym = openSubclass.linearization.iterator.map(symbol.overridingSymbol(_)).collectFirst {
+          case Some(overridingSym) => overridingSym
+        }
+        // In any case, we must find `symbol` itself, if it is never overridden
+        assert(overridingSym.isDefined, s"Did not find $symbol in open subclass $openSubclass")
+        !overridingSym.get.is(Final)
+      }
+  end memberIsOverridable
 
   def symVisibility(symbol: TermOrTypeSymbol)(using Context): Visibility =
     if symbol.is(Private) then Visibility.Private
@@ -310,16 +371,22 @@ private[tastymima] object Analyzer:
       pathOf(owner) :+ symbol.name
   end pathOf
 
-  /** Check that `tp1.matches(tp2)` and that the result type of `tp1` is a subtype of that of `tp2`. */
-  private def isSubMethodType(tp1: Type, tp2: Type)(using Context): Boolean =
-    tp1.matches(tp2) && isSubFinalResultType(tp1, tp2)
+  /** Check that `oldType.matches(newType)` and that the result types are compatible.
+    *
+    * If `allowSubtype` is true, the result of `newType` can be any subtype of the result of `oldType`.
+    * Otherwise, they must be equivalent.
+    */
+  private def isCompatibleTypeChange(oldType: Type, newType: Type, allowSubtype: Boolean)(using Context): Boolean =
+    oldType.matches(newType) && isFinalResultTypeCompatible(oldType, newType, allowSubtype)
 
-  private def isSubFinalResultType(tp1: Type, tp2: Type)(using Context): Boolean = (tp1.widen, tp2.widen) match
-    case (tp1: MethodType, tp2: MethodType) =>
-      isSubFinalResultType(tp1.resultType, tp2.instantiate(tp1.paramRefs))
-    case (tp1: PolyType, tp2: PolyType) =>
-      isSubFinalResultType(tp1.resultType, tp2.instantiate(tp1.paramRefs))
-    case _ =>
-      tp1.isSubtype(tp2)
-  end isSubFinalResultType
+  private def isFinalResultTypeCompatible(oldType: Type, newType: Type, allowSubtype: Boolean)(using Context): Boolean =
+    (oldType.widen, newType.widen) match
+      case (oldType: MethodType, newType: MethodType) =>
+        isFinalResultTypeCompatible(oldType.resultType, newType.instantiate(oldType.paramRefs), allowSubtype)
+      case (oldType: PolyType, newType: PolyType) =>
+        isFinalResultTypeCompatible(oldType.resultType, newType.instantiate(oldType.paramRefs), allowSubtype)
+      case _ =>
+        if allowSubtype then newType.isSubtype(oldType)
+        else newType.isSameType(oldType)
+  end isFinalResultTypeCompatible
 end Analyzer
