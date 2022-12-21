@@ -9,6 +9,7 @@ object Problems:
     case MissingTermMember(info: SymbolInfo)
     case RestrictedVisibilityChange(info: SymbolInfo, oldVisibility: Visibility, newVisibility: Visibility)
     case IncompatibleKindChange(info: SymbolInfo, oldKind: SymbolKind, newKind: SymbolKind)
+    case RestrictedOpenLevelChange(info: ClassInfo, oldLevel: OpenLevel, newLevel: OpenLevel)
     case TypeArgumentCountMismatch(info: ClassInfo)
     case IncompatibleTypeChange(info: SymbolInfo)
   end Problem
@@ -32,6 +33,10 @@ object Problems:
     case Class, TypeAlias, AbstractTypeMember, OpaqueTypeAlias, TypeParam
     case Module, Method, ValField, VarField, LazyValField
   end SymbolKind
+
+  enum OpenLevel:
+    case Final, Sealed, Default, Open
+  end OpenLevel
 
   sealed class SymbolInfo(val path: List[Name]):
     override def toString(): String =
