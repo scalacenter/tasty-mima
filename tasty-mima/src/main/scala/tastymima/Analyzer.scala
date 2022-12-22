@@ -254,7 +254,11 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
   private def classOpenBoundary(cls: ClassSymbol)(using Context): Set[ClassSymbol] =
     def compute: Set[ClassSymbol] =
       if cls.is(Final) then Set.empty
-      else if cls.is(Sealed) then sealedClassChildren(cls).flatMap(classOpenBoundary(_))
+      else if cls.is(Sealed) then
+        cls.sealedChildren.toSet.flatMap {
+          case childClass: ClassSymbol => classOpenBoundary(childClass)
+          case childTerm: TermSymbol   => Set.empty
+        }
       else Set(cls)
 
     openBoundaryMemoized.getOrElseUpdate(cls, compute)
@@ -280,26 +284,6 @@ private[tastymima] object Analyzer:
 
   def classInfo(symbol: Symbol)(using Context): ClassInfo =
     ClassInfo(pathOf(symbol))
-
-  /** The list of direct children of the sealed class `cls`. */
-  private def sealedClassChildren(cls: ClassSymbol)(using Context): Set[ClassSymbol] =
-    // This should probably be provided directly by tasty-query
-
-    import tastyquery.Trees.*
-
-    val ChildAnnot = ctx.findTopLevelClass("scala.annotation.internal.Child")
-    val childrenList = for annot <- cls.getAnnotations(ChildAnnot) yield annot.tree match
-      case tree @ Apply(TypeApply(Select(New(_), _), tpt :: Nil), _) =>
-        tpt.toType match
-          case childRef: TypeRef if childRef.symbol.isClass =>
-            childRef.symbol.asClass
-          case _ =>
-            throw InvalidProgramStructureException(s"Unexpected child annotation tree $tree")
-      case tree =>
-        throw InvalidProgramStructureException(s"Unexpected child annotation tree $tree")
-
-    childrenList.toSet
-  end sealedClassChildren
 
   /** Tests whether the given member is overridable from outside the library. */
   private def memberIsOverridable(symbol: TermOrTypeSymbol, ownerClassOpenBoundary: Set[ClassSymbol])(
