@@ -138,7 +138,12 @@ class AnalyzeSuite extends munit.FunSuite:
       PM.IncompatibleTypeChange("testlib.membertypechanges.MemberTypeChanges.methodSameSigOtherResultType"),
       // Side effects of changing the type of a var
       PM.MissingTermMember("testlib.membertypechanges.MemberTypeChanges.varSubType_="),
-      PM.MissingTermMember("testlib.membertypechanges.MemberTypeChanges.varOtherType_=")
+      PM.MissingTermMember("testlib.membertypechanges.MemberTypeChanges.varOtherType_="),
+      // Members in a (partially) sealed hierarchy
+      PM.IncompatibleTypeChange("testlib.membertypechanges.SealedHierarchy.defOpenNoOverride"),
+      PM.IncompatibleTypeChange("testlib.membertypechanges.SealedHierarchy.defOpenWithOverride"),
+      PM.IncompatibleTypeChange("testlib.membertypechanges.SealedHierarchy.defSometimesFinal"),
+      PM.IncompatibleTypeChange("testlib.membertypechanges.SealedHierarchy.accessibleProtected")
     )
   }
 
