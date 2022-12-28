@@ -102,7 +102,88 @@ class AnalyzeSuite extends munit.FunSuite:
       PM.MissingClass("testlib.memberkindchanges.MemberKindChanges.moduleToVal$"),
       PM.MissingClass("testlib.memberkindchanges.MemberKindChanges.moduleToVar$"),
       PM.MissingClass("testlib.memberkindchanges.MemberKindChanges.moduleToDef$"),
-      PM.MissingClass("testlib.memberkindchanges.MemberKindChanges.moduleToLazyVal$")
+      PM.MissingClass("testlib.memberkindchanges.MemberKindChanges.moduleToLazyVal$"),
+      // class to *
+      PM.IncompatibleKindChange("testlib.memberkindchanges.TypeMemberKindChanges.ClassToTrait", Class, Trait),
+      PM.IncompatibleKindChange("testlib.memberkindchanges.TypeMemberKindChanges.ClassToTypeAlias", Class, TypeAlias),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.ClassToAbstractType",
+        Class,
+        AbstractTypeMember
+      ),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.ClassToOpaqueTypeAlias",
+        Class,
+        OpaqueTypeAlias
+      ),
+      // trait to *
+      PM.IncompatibleKindChange("testlib.memberkindchanges.TypeMemberKindChanges.TraitToClass", Trait, Class),
+      PM.IncompatibleKindChange("testlib.memberkindchanges.TypeMemberKindChanges.TraitToTypeAlias", Trait, TypeAlias),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.TraitToAbstractType",
+        Trait,
+        AbstractTypeMember
+      ),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.TraitToOpaqueTypeAlias",
+        Trait,
+        OpaqueTypeAlias
+      ),
+      // type alias to *
+      PM.IncompatibleKindChange("testlib.memberkindchanges.TypeMemberKindChanges.TypeAliasToClass", TypeAlias, Class),
+      PM.IncompatibleKindChange("testlib.memberkindchanges.TypeMemberKindChanges.TypeAliasToTrait", TypeAlias, Trait),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.TypeAliasToAbstractType",
+        TypeAlias,
+        AbstractTypeMember
+      ),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.TypeAliasToOpaqueTypeAlias",
+        TypeAlias,
+        OpaqueTypeAlias
+      ),
+      // abstract type member to *
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.AbstractTypeToClass",
+        AbstractTypeMember,
+        Class
+      ),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.AbstractTypeToTrait",
+        AbstractTypeMember,
+        Trait
+      ),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.AbstractTypeToTypeAlias",
+        AbstractTypeMember,
+        TypeAlias
+      ),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.AbstractTypeToOpaqueTypeAlias",
+        AbstractTypeMember,
+        OpaqueTypeAlias
+      ),
+      // opaque type alias to *
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.OpaqueTypeAliasToClass",
+        OpaqueTypeAlias,
+        Class
+      ),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.OpaqueTypeAliasToTrait",
+        OpaqueTypeAlias,
+        Trait
+      ),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.OpaqueTypeAliasToTypeAlias",
+        OpaqueTypeAlias,
+        TypeAlias
+      ),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.OpaqueTypeAliasToAbstractType",
+        OpaqueTypeAlias,
+        AbstractTypeMember
+      )
     )
   }
 

@@ -31,7 +31,7 @@ object Problems:
   end Visibility
 
   enum SymbolKind:
-    case Class, TypeAlias, AbstractTypeMember, OpaqueTypeAlias, TypeParam
+    case Class, Trait, TypeAlias, AbstractTypeMember, OpaqueTypeAlias, TypeParam
     case Module, Method, ValField, VarField, LazyValField
   end SymbolKind
 

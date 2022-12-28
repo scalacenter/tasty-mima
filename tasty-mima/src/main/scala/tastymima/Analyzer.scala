@@ -49,6 +49,12 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
   private def analyzeClass(oldClass: ClassSymbol, newClass: ClassSymbol): Unit =
     checkVisibility(oldClass, newClass)
 
+    val oldKind = symKind(oldClass)(using oldCtx)
+    val newKind = symKind(newClass)(using newCtx)
+    if oldKind != newKind then
+      reportIncompatibleKindChange(oldClass, oldKind, newKind)
+      return // things can severely break further down, in that case
+
     if oldClass.typeParams(using oldCtx).sizeCompare(newClass.typeParams(using newCtx)) != 0 then
       reportProblem(Problem.TypeArgumentCountMismatch(classInfo(oldClass)(using oldCtx)))
       return // things can severely break further down, in that case
@@ -367,7 +373,8 @@ private[tastymima] object Analyzer:
       else if sym.is(Lazy) then SymbolKind.LazyValField
       else SymbolKind.ValField
     case _: ClassSymbol =>
-      SymbolKind.Class
+      if symbol.is(Trait) then SymbolKind.Trait
+      else SymbolKind.Class
     case sym: TypeMemberSymbol =>
       sym.typeDef match
         case TypeMemberDefinition.TypeAlias(_)          => SymbolKind.TypeAlias
