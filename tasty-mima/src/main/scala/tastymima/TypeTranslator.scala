@@ -120,7 +120,7 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
           throw InvalidProgramStructureException(s"Unexpected custom transient type $oldType")
   end translateType
 
-  private def translateTypeBounds(oldBounds: TypeBounds): TypeBounds = oldBounds match
+  def translateTypeBounds(oldBounds: TypeBounds): TypeBounds = oldBounds match
     case RealTypeBounds(low, high) => RealTypeBounds(translateType(low), translateType(high))
     case TypeAlias(alias)          => TypeAlias(translateType(alias))
   end translateTypeBounds

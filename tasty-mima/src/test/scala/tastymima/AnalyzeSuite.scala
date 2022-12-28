@@ -232,11 +232,15 @@ class AnalyzeSuite extends munit.FunSuite:
     val problems = problemsInPackage("classtypeparams")
 
     assertProblems(problems)(
+      // From ClassTypeParams.scala
       PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParams.a3"),
       PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParams.b3"),
       PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParams.Inner.c4"),
       PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParams.Inner.d4"),
-      PM.TypeArgumentCountMismatch("testlib.classtypeparams.ClassTypeParams.ArgCountMismatch")
+      PM.TypeArgumentCountMismatch("testlib.classtypeparams.ClassTypeParams.ArgCountMismatch"),
+      // From ClassTypeParamBounds.scala
+      PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParamBounds.B"),
+      PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParamBounds.C")
     )
   }
 

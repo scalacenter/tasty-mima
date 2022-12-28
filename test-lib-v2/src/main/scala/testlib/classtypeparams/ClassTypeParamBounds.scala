@@ -1,0 +1,3 @@
+package testlib.classtypeparams
+
+final class ClassTypeParamBounds[X <: Any, Y >: Nothing <: AnyVal, Z <: Y]

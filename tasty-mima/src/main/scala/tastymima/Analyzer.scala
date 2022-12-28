@@ -55,9 +55,13 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
       reportIncompatibleKindChange(oldClass, oldKind, newKind)
       return // things can severely break further down, in that case
 
-    if oldClass.typeParams(using oldCtx).sizeCompare(newClass.typeParams(using newCtx)) != 0 then
+    val oldTypeParams = oldClass.typeParams(using oldCtx)
+    val newTypeParams = newClass.typeParams(using newCtx)
+    if oldTypeParams.sizeCompare(newTypeParams) != 0 then
       reportProblem(Problem.TypeArgumentCountMismatch(classInfo(oldClass)(using oldCtx)))
       return // things can severely break further down, in that case
+    for (oldTypeParam, newTypeParam) <- oldTypeParams.zip(newTypeParams) do
+      analyzeClassTypeParam(oldTypeParam, newTypeParam)
 
     checkOpenLevel(oldClass, newClass)
 
@@ -125,6 +129,15 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
     if !isCompatible then
       reportProblem(Problem.RestrictedOpenLevelChange(classInfo(oldClass)(using oldCtx), oldOpenLevel, newOpenLevel))
   end checkOpenLevel
+
+  private def analyzeClassTypeParam(oldSym: ClassTypeParamSymbol, newSym: ClassTypeParamSymbol): Unit =
+    val oldBounds = oldSym.bounds(using oldCtx)
+    val translatedOldBounds = translateTypeBounds(oldBounds)
+    val newBounds = newSym.bounds(using newCtx)
+
+    if !isCompatibleTypeBoundsChange(translatedOldBounds, newBounds, allowNarrower = false)(using newCtx) then
+      reportProblem(Problem.IncompatibleTypeChange(symInfo(oldSym)(using oldCtx)))
+  end analyzeClassTypeParam
 
   private def analyzeTypeMember(
     oldPrefix: Type,
@@ -223,6 +236,9 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
 
   private def translateType(oldType: Type): Type =
     new TypeTranslator(oldCtx, newCtx).translateType(oldType)
+
+  private def translateTypeBounds(oldBounds: TypeBounds): TypeBounds =
+    new TypeTranslator(oldCtx, newCtx).translateTypeBounds(oldBounds)
 
   private def withOldCtx[A](f: Context ?=> A): A = f(using oldCtx)
 
@@ -436,4 +452,17 @@ private[tastymima] object Analyzer:
         if allowSubtype then newType.isSubtype(oldType)
         else newType.isSameType(oldType)
   end isFinalResultTypeCompatible
+
+  private def isCompatibleTypeBoundsChange(oldBounds: TypeBounds, newBounds: TypeBounds, allowNarrower: Boolean)(
+    using Context
+  ): Boolean =
+    (oldBounds, newBounds) match
+      case (RealTypeBounds(oldLow, oldHigh), RealTypeBounds(newLow, newHigh)) =>
+        if allowNarrower then oldLow.isSubtype(newLow) && newHigh.isSubtype(oldHigh)
+        else oldLow.isSameType(newLow) && newHigh.isSameType(oldHigh)
+      case (TypeAlias(oldAlias), TypeAlias(newAlias)) =>
+        oldAlias.isSameType(newAlias)
+      case _ =>
+        false
+  end isCompatibleTypeBoundsChange
 end Analyzer
