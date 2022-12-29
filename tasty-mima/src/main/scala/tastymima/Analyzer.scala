@@ -146,14 +146,40 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
     newPrefix: Type,
     newSym: TypeMemberSymbol
   ): Unit =
+    import tastyquery.Symbols.TypeMemberDefinition as TMDef
+
     checkVisibility(oldSym, newSym)
 
-    val oldKind = symKind(oldSym)(using oldCtx)
-    val newKind = symKind(newSym)(using newCtx)
-    val kindsOK = oldKind == newKind // Maybe an abstract type can become a type alias?
+    def reportIncompatibleTypeChange(): Unit =
+      reportProblem(Problem.IncompatibleTypeChange(symInfo(oldSym)(using oldCtx)))
 
-    if !kindsOK then reportIncompatibleKindChange(oldSym, oldKind, newKind)
-    else () // TODO
+    val oldTypeDef = oldSym.typeDef(using oldCtx)
+    val newTypeDef = newSym.typeDef(using newCtx)
+    val allowNarrower = !oldIsOverridable
+
+    (oldTypeDef, newTypeDef) match
+      case (TMDef.TypeAlias(oldAlias), TMDef.TypeAlias(newAlias)) =>
+        val translatedOldAlias = translateType(oldAlias)
+        if !translatedOldAlias.isSameType(newAlias)(using newCtx) then reportIncompatibleTypeChange()
+
+      case (TMDef.AbstractType(oldBounds), TMDef.AbstractType(newBounds)) =>
+        val translatedOldBounds = translateTypeBounds(oldBounds)
+        if !isCompatibleTypeBoundsChange(translatedOldBounds, newBounds, allowNarrower)(using newCtx) then
+          reportIncompatibleTypeChange()
+
+      case (TMDef.OpaqueTypeAlias(oldBounds, oldAlias), TMDef.OpaqueTypeAlias(newBounds, newAlias)) =>
+        val translatedOldBounds = translateTypeBounds(oldBounds)
+        if !isCompatibleTypeBoundsChange(translatedOldBounds, newBounds, allowNarrower)(using newCtx) then
+          reportIncompatibleTypeChange()
+
+        val oldErasedAlias = ErasedTypeRef.erase(oldAlias)(using oldCtx)
+        val newErasedAlias = ErasedTypeRef.erase(newAlias)(using newCtx)
+        if oldErasedAlias.toSigFullName != newErasedAlias.toSigFullName then reportIncompatibleTypeChange()
+
+      case _ =>
+        val oldKind = symKind(oldSym)(using oldCtx)
+        val newKind = symKind(newSym)(using newCtx)
+        reportIncompatibleKindChange(oldSym, oldKind, newKind)
   end analyzeTypeMember
 
   private def analyzeTermMember(

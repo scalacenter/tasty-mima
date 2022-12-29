@@ -224,7 +224,15 @@ class AnalyzeSuite extends munit.FunSuite:
       PM.IncompatibleTypeChange("testlib.membertypechanges.SealedHierarchy.defOpenNoOverride"),
       PM.IncompatibleTypeChange("testlib.membertypechanges.SealedHierarchy.defOpenWithOverride"),
       PM.IncompatibleTypeChange("testlib.membertypechanges.SealedHierarchy.defSometimesFinal"),
-      PM.IncompatibleTypeChange("testlib.membertypechanges.SealedHierarchy.accessibleProtected")
+      PM.IncompatibleTypeChange("testlib.membertypechanges.SealedHierarchy.accessibleProtected"),
+      // Type alias
+      PM.IncompatibleTypeChange("testlib.membertypechanges.TypeMemberTypeChanges.TypeAliasOtherAlias"),
+      PM.IncompatibleTypeChange("testlib.membertypechanges.TypeMemberTypeChanges.TypeAliasSubtypeAlias"),
+      // Abstract type
+      PM.IncompatibleTypeChange("testlib.membertypechanges.TypeMemberTypeChanges.AbstractTypeOtherBounds"),
+      // Opaque type alias
+      PM.IncompatibleTypeChange("testlib.membertypechanges.TypeMemberTypeChanges.OpaqueTypeAliasOtherBounds"),
+      PM.IncompatibleTypeChange("testlib.membertypechanges.TypeMemberTypeChanges.OpaqueTypeAliasOtherErasedAlias")
     )
   }
 
@@ -272,8 +280,8 @@ class AnalyzeSuite extends munit.FunSuite:
       PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.methodTypeChanged"),
       // PolyType + TypeParamRef
       PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.polyTypeChanged"),
-      // TypeLambda + TypeParamRef -- translated, but need to check TypeMembers for this to show up
-      //PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.typeLambdaChanged"),
+      // TypeLambda + TypeParamRef
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.TypeLambdaChanged"),
       // AnnotatedType
       PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.annotatedTypeChanged"),
       // WildcardTypeBounds
