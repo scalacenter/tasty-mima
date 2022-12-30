@@ -19,8 +19,6 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
 
   private val _problems = mutable.ListBuffer.empty[Problem]
 
-  private val translator = new Translator(oldCtx, newCtx)
-
   def analyzeTopSymbols(oldTopSymbols: List[Symbol], newTopSymbols: List[Symbol]): Unit =
     for topSymbol <- oldTopSymbols do
       topSymbol match
