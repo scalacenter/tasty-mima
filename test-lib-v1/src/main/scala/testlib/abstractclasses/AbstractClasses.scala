@@ -1,0 +1,11 @@
+package testlib.abstractclasses
+
+class ConcreteToConcrete
+class ConcreteToAbstract
+abstract class AbstractToConcrete
+abstract class AbstractToAbstract
+
+sealed class SealedConcreteToConcrete
+sealed class SealedConcreteToAbstract
+sealed abstract class SealedAbstractToConcrete
+sealed abstract class SealedAbstractToAbstract

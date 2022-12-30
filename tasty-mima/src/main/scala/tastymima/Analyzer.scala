@@ -71,6 +71,9 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
 
     checkOpenLevel(oldClass, newClass)
 
+    if oldKind == SymbolKind.Class && !oldClass.is(Abstract) && newClass.is(Abstract) then
+      reportProblem(Problem.AbstractClass(classInfo(oldClass)(using oldCtx)))
+
     val oldThisType = classThisType(oldClass)(using oldCtx)
     val newThisType = classThisType(newClass)(using newCtx)
 

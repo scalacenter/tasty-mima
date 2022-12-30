@@ -12,6 +12,7 @@ object Problems:
     case MissingParent(info: ClassInfo)
     case IncompatibleSelfTypeChange(info: ClassInfo)
     case RestrictedOpenLevelChange(info: ClassInfo, oldLevel: OpenLevel, newLevel: OpenLevel)
+    case AbstractClass(info: ClassInfo)
     case TypeArgumentCountMismatch(info: ClassInfo)
     case IncompatibleTypeChange(info: SymbolInfo)
     case NewAbstractMember(info: SymbolInfo)

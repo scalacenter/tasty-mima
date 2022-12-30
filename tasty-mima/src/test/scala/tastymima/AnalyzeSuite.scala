@@ -203,6 +203,15 @@ class AnalyzeSuite extends munit.FunSuite:
     )
   }
 
+  test("abstract classes") {
+    val problems = problemsInPackage("abstractclasses")
+
+    assertProblems(problems)(
+      PM.AbstractClass("testlib.abstractclasses.ConcreteToAbstract"),
+      PM.AbstractClass("testlib.abstractclasses.SealedConcreteToAbstract")
+    )
+  }
+
   test("member type changes") {
     val problems = problemsInPackage("membertypechanges")
 
@@ -488,6 +497,12 @@ object AnalyzeSuite:
         case Problem.RestrictedOpenLevelChange(info, `oldLevel`, `newLevel`) => info.toString() == fullName
         case _                                                               => false
     end RestrictedOpenLevelChange
+
+    final case class AbstractClass(fullName: String) extends ProblemMatcher:
+      def apply(problem: Problem): Boolean = problem match
+        case Problem.AbstractClass(info) => info.toString() == fullName
+        case _                           => false
+    end AbstractClass
 
     final case class TypeArgumentCountMismatch(fullName: String) extends ProblemMatcher:
       def apply(problem: Problem): Boolean = problem match
