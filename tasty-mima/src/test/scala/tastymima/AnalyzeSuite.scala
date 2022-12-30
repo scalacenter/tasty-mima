@@ -267,6 +267,20 @@ class AnalyzeSuite extends munit.FunSuite:
     )
   }
 
+  test("self types") {
+    val problems = problemsInPackage("selftypes")
+
+    assertProblems(problems)(
+      PM.IncompatibleSelfTypeChange("testlib.selftypes.ClassOtherSelfTypeMono"),
+      PM.IncompatibleSelfTypeChange("testlib.selftypes.ClassOtherSelfTypePolyCustom1"),
+      PM.IncompatibleSelfTypeChange("testlib.selftypes.ClassOtherSelfTypePolyCustom2"),
+      PM.IncompatibleSelfTypeChange("testlib.selftypes.ClassOtherSelfTypePolyTParam1"),
+      PM.IncompatibleSelfTypeChange("testlib.selftypes.ClassOtherSelfTypePolyTParam2"),
+      PM.IncompatibleSelfTypeChange("testlib.selftypes.AddSelfType"),
+      PM.IncompatibleSelfTypeChange("testlib.selftypes.RemoveSelfType")
+    )
+  }
+
   test("type translations") {
     val problems = problemsInPackage("typetranslations")
 
@@ -461,6 +475,12 @@ object AnalyzeSuite:
         case Problem.MissingParent(info) => info.toString() == fullName
         case _                           => false
     end MissingParent
+
+    final case class IncompatibleSelfTypeChange(fullName: String) extends ProblemMatcher:
+      def apply(problem: Problem): Boolean = problem match
+        case Problem.IncompatibleSelfTypeChange(info) => info.toString() == fullName
+        case _                                        => false
+    end IncompatibleSelfTypeChange
 
     final case class RestrictedOpenLevelChange(fullName: String, oldLevel: OpenLevel, newLevel: OpenLevel)
         extends ProblemMatcher:

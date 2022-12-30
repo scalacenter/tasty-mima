@@ -10,6 +10,7 @@ object Problems:
     case RestrictedVisibilityChange(info: SymbolInfo, oldVisibility: Visibility, newVisibility: Visibility)
     case IncompatibleKindChange(info: SymbolInfo, oldKind: SymbolKind, newKind: SymbolKind)
     case MissingParent(info: ClassInfo)
+    case IncompatibleSelfTypeChange(info: ClassInfo)
     case RestrictedOpenLevelChange(info: ClassInfo, oldLevel: OpenLevel, newLevel: OpenLevel)
     case TypeArgumentCountMismatch(info: ClassInfo)
     case IncompatibleTypeChange(info: SymbolInfo)

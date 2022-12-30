@@ -63,14 +63,16 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
     for (oldTypeParam, newTypeParam) <- oldTypeParams.zip(newTypeParams) do
       analyzeClassTypeParam(oldTypeParam, newTypeParam)
 
+    val openBoundary = classOpenBoundary(oldClass)(using oldCtx)
+
     checkClassParents(oldClass, newClass)
+
+    if openBoundary.nonEmpty then checkSelfType(oldClass, newClass)
 
     checkOpenLevel(oldClass, newClass)
 
     val oldThisType = classThisType(oldClass)(using oldCtx)
     val newThisType = classThisType(newClass)(using newCtx)
-
-    val openBoundary = classOpenBoundary(oldClass)(using oldCtx)
 
     for oldDecl <- oldClass.declarations(using oldCtx) do
       val oldVisibility = symVisibility(oldDecl)(using oldCtx)
@@ -126,6 +128,19 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
       if !newParents.exists(_.isSubtype(translatedOldParent)(using newCtx)) then
         reportProblem(Problem.MissingParent(classInfo(oldClass)(using oldCtx)))
   end checkClassParents
+
+  private def checkSelfType(oldClass: ClassSymbol, newClass: ClassSymbol): Unit =
+    val oldSelfType = oldClass.givenSelfType(using oldCtx)
+    val translatedOldSelfType = oldSelfType.map(translateType(_))
+    val newSelfType = newClass.givenSelfType(using newCtx)
+
+    val isCompatible = (translatedOldSelfType, newSelfType) match
+      case (None, None)                             => true
+      case (Some(translatedOldType), Some(newType)) => translatedOldType.isSameType(newType)(using newCtx)
+      case _                                        => false
+
+    if !isCompatible then reportProblem(Problem.IncompatibleSelfTypeChange(classInfo(oldClass)(using oldCtx)))
+  end checkSelfType
 
   private def checkOpenLevel(oldClass: ClassSymbol, newClass: ClassSymbol): Unit =
     val oldOpenLevel = classOpenLevel(oldClass)(using oldCtx)
