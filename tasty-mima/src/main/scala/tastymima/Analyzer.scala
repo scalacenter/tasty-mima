@@ -63,6 +63,8 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
     for (oldTypeParam, newTypeParam) <- oldTypeParams.zip(newTypeParams) do
       analyzeClassTypeParam(oldTypeParam, newTypeParam)
 
+    checkClassParents(oldClass, newClass)
+
     checkOpenLevel(oldClass, newClass)
 
     val oldThisType = classThisType(oldClass)(using oldCtx)
@@ -114,6 +116,16 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
     if openBoundary.nonEmpty && newClass.isAnyOf(Abstract | Trait) then
       checkNewAbstractMembers(oldClass, openBoundary, newClass)
   end analyzeClass
+
+  private def checkClassParents(oldClass: ClassSymbol, newClass: ClassSymbol): Unit =
+    val oldParents = oldClass.parents(using oldCtx)
+    val newParents = newClass.parents(using newCtx)
+
+    for oldParent <- oldParents do
+      val translatedOldParent = translateType(oldParent)
+      if !newParents.exists(_.isSubtype(translatedOldParent)(using newCtx)) then
+        reportProblem(Problem.MissingParent(classInfo(oldClass)(using oldCtx)))
+  end checkClassParents
 
   private def checkOpenLevel(oldClass: ClassSymbol, newClass: ClassSymbol): Unit =
     val oldOpenLevel = classOpenLevel(oldClass)(using oldCtx)

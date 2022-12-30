@@ -252,6 +252,21 @@ class AnalyzeSuite extends munit.FunSuite:
     )
   }
 
+  test("class parents") {
+    val problems = problemsInPackage("classparents")
+
+    assertProblems(problems)(
+      // Monomorphic parents
+      PM.MissingParent("testlib.classparents.IncompatibleSuperClass"),
+      PM.MissingParent("testlib.classparents.IncompatibleTrait"),
+      // Polymorphic parents
+      PM.MissingParent("testlib.classparents.OtherPolyTraitTParam1"),
+      PM.MissingParent("testlib.classparents.OtherPolyTraitTParam2"),
+      PM.MissingParent("testlib.classparents.OtherPolyTraitCustom1"),
+      PM.MissingParent("testlib.classparents.OtherPolyTraitCustom2")
+    )
+  }
+
   test("type translations") {
     val problems = problemsInPackage("typetranslations")
 
@@ -440,6 +455,12 @@ object AnalyzeSuite:
         case Problem.IncompatibleKindChange(info, `oldKind`, `newKind`) => info.toString() == fullName
         case _                                                          => false
     end IncompatibleKindChange
+
+    final case class MissingParent(fullName: String) extends ProblemMatcher:
+      def apply(problem: Problem): Boolean = problem match
+        case Problem.MissingParent(info) => info.toString() == fullName
+        case _                           => false
+    end MissingParent
 
     final case class RestrictedOpenLevelChange(fullName: String, oldLevel: OpenLevel, newLevel: OpenLevel)
         extends ProblemMatcher:
