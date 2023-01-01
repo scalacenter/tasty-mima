@@ -12,6 +12,7 @@ object Problems:
     case RestrictedOpenLevelChange(info: ClassInfo, oldLevel: OpenLevel, newLevel: OpenLevel)
     case TypeArgumentCountMismatch(info: ClassInfo)
     case IncompatibleTypeChange(info: SymbolInfo)
+    case NewAbstractMember(info: SymbolInfo)
   end Problem
 
   /** Visibility of a symbol, from the API point of view.

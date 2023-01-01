@@ -94,15 +94,15 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
             () // nothing to do
 
           case oldDecl: TermSymbol =>
-            val signedName = withOldCtx {
-              if oldDecl.is(Method) && oldDecl.declaredType.isInstanceOf[ExprType] then oldDecl.name
-              else oldDecl.signedName
-            }
-            memberNotFoundToOption(newThisType.member(signedName)(using newCtx)) match
+            lookupCorrespondingTermMember(oldCtx, oldDecl, newCtx, newThisType) match
               case None =>
                 reportProblem(Problem.MissingTermMember(symInfo(oldDecl)(using oldCtx)))
               case Some(newDecl) =>
-                analyzeTermMember(oldThisType, oldDecl, oldIsOverridable, newThisType, newDecl.asInstanceOf[TermSymbol])
+                analyzeTermMember(oldThisType, oldDecl, oldIsOverridable, newThisType, newDecl)
+    end for // oldDecl
+
+    if openBoundary.nonEmpty && newClass.isAnyOf(Abstract | Trait) then
+      checkNewAbstractMembers(oldClass, openBoundary, newClass)
   end analyzeClass
 
   private def checkOpenLevel(oldClass: ClassSymbol, newClass: ClassSymbol): Unit =
@@ -174,6 +174,46 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
 
       if !isCompatible then reportProblem(Problem.IncompatibleTypeChange(symInfo(oldSym)(using oldCtx)))
   end analyzeTermMember
+
+  private def checkNewAbstractMembers(
+    oldClass: ClassSymbol,
+    oldOpenBoundary: Set[ClassSymbol],
+    newClass: ClassSymbol
+  ): Unit =
+    val newOpenBoundary = classOpenBoundary(newClass)(using newCtx)
+
+    // The open boundary that is in common between the old and new versions
+    val commonOpenBoundary: Set[(ClassSymbol, ClassSymbol)] =
+      for
+        oldSubclass <- oldOpenBoundary
+        oldFullName = oldSubclass.fullName
+        newSubclass <- newOpenBoundary.find(_.fullName == oldFullName)
+      yield (oldSubclass, newSubclass)
+
+    if commonOpenBoundary.isEmpty then
+      // Fast path, nothing to do (fast-path because the `commonOpenBoundary.forall` would always be true)
+      (): Unit // : Unit to prevent scalafmt from killing this line
+    else
+      // For each abstract term member in the new class, ...
+      for
+        case (newDecl: TermSymbol) <- newClass.declarations(using newCtx)
+        if newDecl.is(Abstract) && newDecl.name != nme.Constructor
+      do
+        // If it is actually abstract in at least one subclass of the open boundary, ...
+        val newIsActuallyAbstract = commonOpenBoundary.exists { (oldSubclass, newSubclass) =>
+          isActuallyAbstractIn(newDecl, newSubclass)(using newCtx)
+        }
+        if newIsActuallyAbstract then
+          // Unless it was already actually abstract in 'old' in *all* the subclasses of the open boundary, ...
+          val oldIsAbstractEverywhere = commonOpenBoundary.forall { (oldSubclass, newSubclass) =>
+            lookupCorrespondingTermMember(newCtx, newDecl, oldCtx, classThisType(oldSubclass)(using oldCtx)) match
+              case None          => false
+              case Some(oldDecl) => isActuallyAbstractIn(oldDecl, oldSubclass)(using oldCtx)
+          }
+          if !oldIsAbstractEverywhere then
+            // Then it is a problem
+            reportProblem(Problem.NewAbstractMember(symInfo(newDecl)(using newCtx)))
+  end checkNewAbstractMembers
 
   private def translateType(oldType: Type): Type =
     new TypeTranslator(oldCtx, newCtx).translateType(oldType)
@@ -343,6 +383,24 @@ private[tastymima] object Analyzer:
     else if cls.is(Open) then OpenLevel.Open
     else OpenLevel.Default
   end classOpenLevel
+
+  private def lookupCorrespondingTermMember(
+    fromCtx: Context,
+    fromDecl: TermSymbol,
+    toCtx: Context,
+    toThisType: ThisType
+  ): Option[TermSymbol] =
+    val signedName =
+      if fromDecl.is(Method) && fromDecl.declaredType(using fromCtx).isInstanceOf[ExprType] then fromDecl.name
+      else fromDecl.signedName(using fromCtx)
+    memberNotFoundToOption(toThisType.member(signedName)(using toCtx).asTerm)
+  end lookupCorrespondingTermMember
+
+  private def isActuallyAbstractIn(sym: TermSymbol, subclass: ClassSymbol)(using Context): Boolean =
+    !subclass.linearization.exists { inClass =>
+      sym.overridingSymbol(inClass).orElse(sym.overriddenSymbol(inClass)).exists(!_.is(Abstract))
+    }
+  end isActuallyAbstractIn
 
   def pathOf(symbol: Symbol): List[Name] =
     if symbol.isRoot then Nil
