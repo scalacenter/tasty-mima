@@ -199,7 +199,11 @@ class AnalyzeSuite extends munit.FunSuite:
       // From open
       PM.RestrictedOpenLevelChange("testlib.openlevelchanges.OpenLevelChanges.OpenToFinal", Open, Final),
       PM.RestrictedOpenLevelChange("testlib.openlevelchanges.OpenLevelChanges.OpenToSealed", Open, Sealed),
-      PM.RestrictedOpenLevelChange("testlib.openlevelchanges.OpenLevelChanges.OpenToDefault", Open, Default)
+      PM.RestrictedOpenLevelChange("testlib.openlevelchanges.OpenLevelChanges.OpenToDefault", Open, Default),
+      // Term member from open to final
+      PM.FinalMember("testlib.openlevelchanges.MemberFinalChanges.openToFinal"),
+      // Type member from open to final
+      PM.FinalMember("testlib.openlevelchanges.MemberFinalChanges.TypeOpenToFinal")
     )
   }
 
@@ -497,6 +501,12 @@ object AnalyzeSuite:
         case Problem.RestrictedOpenLevelChange(info, `oldLevel`, `newLevel`) => info.toString() == fullName
         case _                                                               => false
     end RestrictedOpenLevelChange
+
+    final case class FinalMember(fullName: String) extends ProblemMatcher:
+      def apply(problem: Problem): Boolean = problem match
+        case Problem.FinalMember(info) => info.toString() == fullName
+        case _                         => false
+    end FinalMember
 
     final case class AbstractClass(fullName: String) extends ProblemMatcher:
       def apply(problem: Problem): Boolean = problem match

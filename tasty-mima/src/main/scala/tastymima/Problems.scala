@@ -13,6 +13,7 @@ object Problems:
     case IncompatibleSelfTypeChange(info: ClassInfo)
     case RestrictedOpenLevelChange(info: ClassInfo, oldLevel: OpenLevel, newLevel: OpenLevel)
     case AbstractClass(info: ClassInfo)
+    case FinalMember(info: SymbolInfo)
     case TypeArgumentCountMismatch(info: ClassInfo)
     case IncompatibleTypeChange(info: SymbolInfo)
     case NewAbstractMember(info: SymbolInfo)

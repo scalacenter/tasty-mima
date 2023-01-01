@@ -179,6 +179,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
     import tastyquery.Symbols.TypeMemberDefinition as TMDef
 
     checkVisibility(oldSym, newSym)
+    checkMemberFinal(oldSym, oldIsOverridable, newSym)
 
     def reportIncompatibleTypeChange(): Unit =
       reportProblem(Problem.IncompatibleTypeChange(symInfo(oldSym)(using oldCtx)))
@@ -220,6 +221,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
     newSym: TermSymbol
   ): Unit =
     checkVisibility(oldSym, newSym)
+    checkMemberFinal(oldSym, oldIsOverridable, newSym)
 
     val oldKind = symKind(oldSym)(using oldCtx)
     val newKind = symKind(newSym)(using newCtx)
@@ -249,6 +251,10 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
 
       if !isCompatible then reportProblem(Problem.IncompatibleTypeChange(symInfo(oldSym)(using oldCtx)))
   end analyzeTermMember
+
+  private def checkMemberFinal(oldSym: TermOrTypeSymbol, oldIsOverridable: Boolean, newSym: TermOrTypeSymbol): Unit =
+    if oldIsOverridable && newSym.is(Final) then reportProblem(Problem.FinalMember(symInfo(oldSym)(using oldCtx)))
+  end checkMemberFinal
 
   private def checkNewAbstractMembers(
     oldClass: ClassSymbol,
