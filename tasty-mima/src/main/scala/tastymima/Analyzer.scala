@@ -398,7 +398,7 @@ private[tastymima] object Analyzer:
 
   private def isActuallyAbstractIn(sym: TermSymbol, subclass: ClassSymbol)(using Context): Boolean =
     !subclass.linearization.exists { inClass =>
-      sym.overridingSymbol(inClass).orElse(sym.overriddenSymbol(inClass)).exists(!_.is(Abstract))
+      sym.matchingSymbol(inClass, subclass).exists(!_.is(Abstract))
     }
   end isActuallyAbstractIn
 
