@@ -102,7 +102,88 @@ class AnalyzeSuite extends munit.FunSuite:
       PM.MissingClass("testlib.memberkindchanges.MemberKindChanges.moduleToVal$"),
       PM.MissingClass("testlib.memberkindchanges.MemberKindChanges.moduleToVar$"),
       PM.MissingClass("testlib.memberkindchanges.MemberKindChanges.moduleToDef$"),
-      PM.MissingClass("testlib.memberkindchanges.MemberKindChanges.moduleToLazyVal$")
+      PM.MissingClass("testlib.memberkindchanges.MemberKindChanges.moduleToLazyVal$"),
+      // class to *
+      PM.IncompatibleKindChange("testlib.memberkindchanges.TypeMemberKindChanges.ClassToTrait", Class, Trait),
+      PM.IncompatibleKindChange("testlib.memberkindchanges.TypeMemberKindChanges.ClassToTypeAlias", Class, TypeAlias),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.ClassToAbstractType",
+        Class,
+        AbstractTypeMember
+      ),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.ClassToOpaqueTypeAlias",
+        Class,
+        OpaqueTypeAlias
+      ),
+      // trait to *
+      PM.IncompatibleKindChange("testlib.memberkindchanges.TypeMemberKindChanges.TraitToClass", Trait, Class),
+      PM.IncompatibleKindChange("testlib.memberkindchanges.TypeMemberKindChanges.TraitToTypeAlias", Trait, TypeAlias),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.TraitToAbstractType",
+        Trait,
+        AbstractTypeMember
+      ),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.TraitToOpaqueTypeAlias",
+        Trait,
+        OpaqueTypeAlias
+      ),
+      // type alias to *
+      PM.IncompatibleKindChange("testlib.memberkindchanges.TypeMemberKindChanges.TypeAliasToClass", TypeAlias, Class),
+      PM.IncompatibleKindChange("testlib.memberkindchanges.TypeMemberKindChanges.TypeAliasToTrait", TypeAlias, Trait),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.TypeAliasToAbstractType",
+        TypeAlias,
+        AbstractTypeMember
+      ),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.TypeAliasToOpaqueTypeAlias",
+        TypeAlias,
+        OpaqueTypeAlias
+      ),
+      // abstract type member to *
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.AbstractTypeToClass",
+        AbstractTypeMember,
+        Class
+      ),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.AbstractTypeToTrait",
+        AbstractTypeMember,
+        Trait
+      ),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.AbstractTypeToTypeAlias",
+        AbstractTypeMember,
+        TypeAlias
+      ),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.AbstractTypeToOpaqueTypeAlias",
+        AbstractTypeMember,
+        OpaqueTypeAlias
+      ),
+      // opaque type alias to *
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.OpaqueTypeAliasToClass",
+        OpaqueTypeAlias,
+        Class
+      ),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.OpaqueTypeAliasToTrait",
+        OpaqueTypeAlias,
+        Trait
+      ),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.OpaqueTypeAliasToTypeAlias",
+        OpaqueTypeAlias,
+        TypeAlias
+      ),
+      PM.IncompatibleKindChange(
+        "testlib.memberkindchanges.TypeMemberKindChanges.OpaqueTypeAliasToAbstractType",
+        OpaqueTypeAlias,
+        AbstractTypeMember
+      )
     )
   }
 
@@ -118,7 +199,20 @@ class AnalyzeSuite extends munit.FunSuite:
       // From open
       PM.RestrictedOpenLevelChange("testlib.openlevelchanges.OpenLevelChanges.OpenToFinal", Open, Final),
       PM.RestrictedOpenLevelChange("testlib.openlevelchanges.OpenLevelChanges.OpenToSealed", Open, Sealed),
-      PM.RestrictedOpenLevelChange("testlib.openlevelchanges.OpenLevelChanges.OpenToDefault", Open, Default)
+      PM.RestrictedOpenLevelChange("testlib.openlevelchanges.OpenLevelChanges.OpenToDefault", Open, Default),
+      // Term member from open to final
+      PM.FinalMember("testlib.openlevelchanges.MemberFinalChanges.openToFinal"),
+      // Type member from open to final
+      PM.FinalMember("testlib.openlevelchanges.MemberFinalChanges.TypeOpenToFinal")
+    )
+  }
+
+  test("abstract classes") {
+    val problems = problemsInPackage("abstractclasses")
+
+    assertProblems(problems)(
+      PM.AbstractClass("testlib.abstractclasses.ConcreteToAbstract"),
+      PM.AbstractClass("testlib.abstractclasses.SealedConcreteToAbstract")
     )
   }
 
@@ -143,7 +237,15 @@ class AnalyzeSuite extends munit.FunSuite:
       PM.IncompatibleTypeChange("testlib.membertypechanges.SealedHierarchy.defOpenNoOverride"),
       PM.IncompatibleTypeChange("testlib.membertypechanges.SealedHierarchy.defOpenWithOverride"),
       PM.IncompatibleTypeChange("testlib.membertypechanges.SealedHierarchy.defSometimesFinal"),
-      PM.IncompatibleTypeChange("testlib.membertypechanges.SealedHierarchy.accessibleProtected")
+      PM.IncompatibleTypeChange("testlib.membertypechanges.SealedHierarchy.accessibleProtected"),
+      // Type alias
+      PM.IncompatibleTypeChange("testlib.membertypechanges.TypeMemberTypeChanges.TypeAliasOtherAlias"),
+      PM.IncompatibleTypeChange("testlib.membertypechanges.TypeMemberTypeChanges.TypeAliasSubtypeAlias"),
+      // Abstract type
+      PM.IncompatibleTypeChange("testlib.membertypechanges.TypeMemberTypeChanges.AbstractTypeOtherBounds"),
+      // Opaque type alias
+      PM.IncompatibleTypeChange("testlib.membertypechanges.TypeMemberTypeChanges.OpaqueTypeAliasOtherBounds"),
+      PM.IncompatibleTypeChange("testlib.membertypechanges.TypeMemberTypeChanges.OpaqueTypeAliasOtherErasedAlias")
     )
   }
 
@@ -151,11 +253,44 @@ class AnalyzeSuite extends munit.FunSuite:
     val problems = problemsInPackage("classtypeparams")
 
     assertProblems(problems)(
+      // From ClassTypeParams.scala
       PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParams.a3"),
       PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParams.b3"),
       PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParams.Inner.c4"),
       PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParams.Inner.d4"),
-      PM.TypeArgumentCountMismatch("testlib.classtypeparams.ClassTypeParams.ArgCountMismatch")
+      PM.TypeArgumentCountMismatch("testlib.classtypeparams.ClassTypeParams.ArgCountMismatch"),
+      // From ClassTypeParamBounds.scala
+      PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParamBounds.B"),
+      PM.IncompatibleTypeChange("testlib.classtypeparams.ClassTypeParamBounds.C")
+    )
+  }
+
+  test("class parents") {
+    val problems = problemsInPackage("classparents")
+
+    assertProblems(problems)(
+      // Monomorphic parents
+      PM.MissingParent("testlib.classparents.IncompatibleSuperClass"),
+      PM.MissingParent("testlib.classparents.IncompatibleTrait"),
+      // Polymorphic parents
+      PM.MissingParent("testlib.classparents.OtherPolyTraitTParam1"),
+      PM.MissingParent("testlib.classparents.OtherPolyTraitTParam2"),
+      PM.MissingParent("testlib.classparents.OtherPolyTraitCustom1"),
+      PM.MissingParent("testlib.classparents.OtherPolyTraitCustom2")
+    )
+  }
+
+  test("self types") {
+    val problems = problemsInPackage("selftypes")
+
+    assertProblems(problems)(
+      PM.IncompatibleSelfTypeChange("testlib.selftypes.ClassOtherSelfTypeMono"),
+      PM.IncompatibleSelfTypeChange("testlib.selftypes.ClassOtherSelfTypePolyCustom1"),
+      PM.IncompatibleSelfTypeChange("testlib.selftypes.ClassOtherSelfTypePolyCustom2"),
+      PM.IncompatibleSelfTypeChange("testlib.selftypes.ClassOtherSelfTypePolyTParam1"),
+      PM.IncompatibleSelfTypeChange("testlib.selftypes.ClassOtherSelfTypePolyTParam2"),
+      PM.IncompatibleSelfTypeChange("testlib.selftypes.AddSelfType"),
+      PM.IncompatibleSelfTypeChange("testlib.selftypes.RemoveSelfType")
     )
   }
 
@@ -187,8 +322,8 @@ class AnalyzeSuite extends munit.FunSuite:
       PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.methodTypeChanged"),
       // PolyType + TypeParamRef
       PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.polyTypeChanged"),
-      // TypeLambda + TypeParamRef -- translated, but need to check TypeMembers for this to show up
-      //PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.typeLambdaChanged"),
+      // TypeLambda + TypeParamRef
+      PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.TypeLambdaChanged"),
       // AnnotatedType
       PM.IncompatibleTypeChange("testlib.typetranslations.TypeTranslations.Tests.annotatedTypeChanged"),
       // WildcardTypeBounds
@@ -348,12 +483,36 @@ object AnalyzeSuite:
         case _                                                          => false
     end IncompatibleKindChange
 
+    final case class MissingParent(fullName: String) extends ProblemMatcher:
+      def apply(problem: Problem): Boolean = problem match
+        case Problem.MissingParent(info) => info.toString() == fullName
+        case _                           => false
+    end MissingParent
+
+    final case class IncompatibleSelfTypeChange(fullName: String) extends ProblemMatcher:
+      def apply(problem: Problem): Boolean = problem match
+        case Problem.IncompatibleSelfTypeChange(info) => info.toString() == fullName
+        case _                                        => false
+    end IncompatibleSelfTypeChange
+
     final case class RestrictedOpenLevelChange(fullName: String, oldLevel: OpenLevel, newLevel: OpenLevel)
         extends ProblemMatcher:
       def apply(problem: Problem): Boolean = problem match
         case Problem.RestrictedOpenLevelChange(info, `oldLevel`, `newLevel`) => info.toString() == fullName
         case _                                                               => false
     end RestrictedOpenLevelChange
+
+    final case class FinalMember(fullName: String) extends ProblemMatcher:
+      def apply(problem: Problem): Boolean = problem match
+        case Problem.FinalMember(info) => info.toString() == fullName
+        case _                         => false
+    end FinalMember
+
+    final case class AbstractClass(fullName: String) extends ProblemMatcher:
+      def apply(problem: Problem): Boolean = problem match
+        case Problem.AbstractClass(info) => info.toString() == fullName
+        case _                           => false
+    end AbstractClass
 
     final case class TypeArgumentCountMismatch(fullName: String) extends ProblemMatcher:
       def apply(problem: Problem): Boolean = problem match

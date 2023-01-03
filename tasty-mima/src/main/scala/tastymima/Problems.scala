@@ -9,7 +9,11 @@ object Problems:
     case MissingTermMember(info: SymbolInfo)
     case RestrictedVisibilityChange(info: SymbolInfo, oldVisibility: Visibility, newVisibility: Visibility)
     case IncompatibleKindChange(info: SymbolInfo, oldKind: SymbolKind, newKind: SymbolKind)
+    case MissingParent(info: ClassInfo)
+    case IncompatibleSelfTypeChange(info: ClassInfo)
     case RestrictedOpenLevelChange(info: ClassInfo, oldLevel: OpenLevel, newLevel: OpenLevel)
+    case AbstractClass(info: ClassInfo)
+    case FinalMember(info: SymbolInfo)
     case TypeArgumentCountMismatch(info: ClassInfo)
     case IncompatibleTypeChange(info: SymbolInfo)
     case NewAbstractMember(info: SymbolInfo)
@@ -31,7 +35,7 @@ object Problems:
   end Visibility
 
   enum SymbolKind:
-    case Class, TypeAlias, AbstractTypeMember, OpaqueTypeAlias, TypeParam
+    case Class, Trait, TypeAlias, AbstractTypeMember, OpaqueTypeAlias, TypeParam
     case Module, Method, ValField, VarField, LazyValField
   end SymbolKind
 
