@@ -290,6 +290,26 @@ class AnalyzeSuite extends munit.FunSuite:
 
     assertProblems(problems)(allExpectedProblems*)
   }
+
+  test("new abstract members") {
+    val problems = problemsInPackage("newabstractmembers")
+
+    assertProblems(problems)(
+      // Actual NewAbstractMember tests
+      PM.NewAbstractMember("testlib.newabstractmembers.NewAbstractMembers.newAbstractVal"),
+      PM.NewAbstractMember("testlib.newabstractmembers.NewAbstractMembers.newAbstractDef"),
+      PM.NewAbstractMember("testlib.newabstractmembers.NewAbstractMembers.oldConcreteVal"),
+      PM.NewAbstractMember("testlib.newabstractmembers.NewAbstractMembers.oldConcreteDef"),
+      // For types, this is actually an incompatible *kind* change; a new abstract type is OK
+      PM.IncompatibleKindChange(
+        "testlib.newabstractmembers.NewAbstractMembers.OldConcreteType",
+        SymbolKind.TypeAlias,
+        SymbolKind.AbstractTypeMember
+      ),
+      // Missing class that hides another problem (should not make the rest crash)
+      PM.MissingClass("testlib.newabstractmembers.RemovedOpenSubclass")
+    )
+  }
 end AnalyzeSuite
 
 object AnalyzeSuite:
@@ -346,5 +366,11 @@ object AnalyzeSuite:
         case Problem.IncompatibleTypeChange(info) => info.toString() == fullName
         case _                                    => false
     end IncompatibleTypeChange
+
+    final case class NewAbstractMember(fullName: String) extends ProblemMatcher:
+      def apply(problem: Problem): Boolean = problem match
+        case Problem.NewAbstractMember(info) => info.toString() == fullName
+        case _                               => false
+    end NewAbstractMember
   end ProblemMatcher
 end AnalyzeSuite
