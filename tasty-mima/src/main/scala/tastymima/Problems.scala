@@ -3,20 +3,30 @@ package tastymima
 import tastyquery.Names.*
 
 object Problems:
-  enum Problem:
-    case MissingClass(oldClass: ClassInfo)
-    case MissingTypeMember(info: SymbolInfo)
-    case MissingTermMember(info: SymbolInfo)
-    case RestrictedVisibilityChange(info: SymbolInfo, oldVisibility: Visibility, newVisibility: Visibility)
-    case IncompatibleKindChange(info: SymbolInfo, oldKind: SymbolKind, newKind: SymbolKind)
-    case MissingParent(info: ClassInfo)
-    case IncompatibleSelfTypeChange(info: ClassInfo)
-    case RestrictedOpenLevelChange(info: ClassInfo, oldLevel: OpenLevel, newLevel: OpenLevel)
-    case AbstractClass(info: ClassInfo)
-    case FinalMember(info: SymbolInfo)
-    case TypeArgumentCountMismatch(info: ClassInfo)
-    case IncompatibleTypeChange(info: SymbolInfo)
-    case NewAbstractMember(info: SymbolInfo)
+  enum ProblemKind:
+    case MissingClass
+    case MissingTypeMember
+    case MissingTermMember
+    case RestrictedVisibilityChange
+    case IncompatibleKindChange
+    case MissingParent
+    case IncompatibleSelfTypeChange
+    case RestrictedOpenLevelChange
+    case AbstractClass
+    case FinalMember
+    case TypeArgumentCountMismatch
+    case IncompatibleTypeChange
+    case NewAbstractMember
+  end ProblemKind
+
+  final class Problem(val kind: ProblemKind, val path: List[Name]):
+    val pathString: String =
+      val s1 = path.mkString(".")
+      if path.nonEmpty && path.last.isTypeName && path.last.toTypeName.wrapsObjectName then s1 + "$"
+      else s1
+
+    override def toString(): String =
+      s"Problem($kind, $pathString)"
   end Problem
 
   /** Visibility of a symbol, from the API point of view.
@@ -28,9 +38,9 @@ object Problems:
     */
   enum Visibility:
     case Private
-    case PackagePrivate(scopeInfo: SymbolInfo)
+    case PackagePrivate(scope: List[Name])
     case Protected
-    case PackageProtected(scopeInfo: SymbolInfo)
+    case PackageProtected(scope: List[Name])
     case Public
   end Visibility
 
@@ -42,13 +52,4 @@ object Problems:
   enum OpenLevel:
     case Final, Sealed, Default, Open
   end OpenLevel
-
-  sealed class SymbolInfo(val path: List[Name]):
-    override def toString(): String =
-      val s1 = path.mkString(".")
-      if path.nonEmpty && path.last.isTypeName && path.last.toTypeName.wrapsObjectName then s1 + "$"
-      else s1
-  end SymbolInfo
-
-  final class ClassInfo(path: List[Name]) extends SymbolInfo(path)
 end Problems

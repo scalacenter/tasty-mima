@@ -32,6 +32,12 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
   private def reportProblem(problem: Problem): Unit =
     _problems += problem
 
+  private def reportProblem(kind: ProblemKind, path: List[Name]): Unit =
+    reportProblem(Problem(kind, path))
+
+  private def reportProblem(kind: ProblemKind, symbol: Symbol): Unit =
+    reportProblem(kind, pathOf(symbol))
+
   private def analyzeTopClass(oldTopClass: ClassSymbol): Unit =
     val oldVisibility = symVisibility(oldTopClass)(using oldCtx)
     val isTopAccessible = oldVisibility != Visibility.Private && oldVisibility != Visibility.Protected
@@ -41,7 +47,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
       val path = oldTopClass.fullName.path
       invalidStructureToOption(newCtx.findSymbolFromRoot(path).asClass) match
         case None =>
-          reportProblem(Problem.MissingClass(ClassInfo(path)))
+          reportProblem(ProblemKind.MissingClass, oldTopClass)
         case Some(newTopClass) =>
           analyzeClass(oldTopClass, newTopClass)
   end analyzeTopClass
@@ -52,13 +58,13 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
     val oldKind = symKind(oldClass)(using oldCtx)
     val newKind = symKind(newClass)(using newCtx)
     if oldKind != newKind then
-      reportIncompatibleKindChange(oldClass, oldKind, newKind)
+      reportProblem(ProblemKind.IncompatibleKindChange, oldClass)
       return // things can severely break further down, in that case
 
     val oldTypeParams = oldClass.typeParams(using oldCtx)
     val newTypeParams = newClass.typeParams(using newCtx)
     if oldTypeParams.sizeCompare(newTypeParams) != 0 then
-      reportProblem(Problem.TypeArgumentCountMismatch(classInfo(oldClass)(using oldCtx)))
+      reportProblem(ProblemKind.TypeArgumentCountMismatch, oldClass)
       return // things can severely break further down, in that case
     for (oldTypeParam, newTypeParam) <- oldTypeParams.zip(newTypeParams) do
       analyzeClassTypeParam(oldTypeParam, newTypeParam)
@@ -72,7 +78,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
     checkOpenLevel(oldClass, newClass)
 
     if oldKind == SymbolKind.Class && !oldClass.is(Abstract) && newClass.is(Abstract) then
-      reportProblem(Problem.AbstractClass(classInfo(oldClass)(using oldCtx)))
+      reportProblem(ProblemKind.AbstractClass, oldClass)
 
     val oldThisType = classThisType(oldClass)(using oldCtx)
     val newThisType = classThisType(newClass)(using newCtx)
@@ -92,20 +98,20 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
           case oldDecl: ClassSymbol =>
             newClass.getDecl(oldDecl.name)(using newCtx) match
               case None =>
-                reportProblem(Problem.MissingClass(classInfo(oldDecl)(using oldCtx)))
+                reportProblem(ProblemKind.MissingClass, oldDecl)
               case Some(newDecl: ClassSymbol) =>
                 analyzeClass(oldDecl, newDecl)
               case Some(newDecl: TypeSymbolWithBounds) =>
-                reportIncompatibleKindChange(oldDecl, newDecl)
+                reportProblem(ProblemKind.IncompatibleKindChange, oldDecl)
 
           case oldDecl: TypeMemberSymbol =>
             memberNotFoundToOption(newThisType.member(oldDecl.name)(using newCtx)) match
               case None =>
-                reportProblem(Problem.MissingTypeMember(symInfo(oldDecl)(using oldCtx)))
+                reportProblem(ProblemKind.MissingTypeMember, oldDecl)
               case Some(newDecl: TypeMemberSymbol) =>
                 analyzeTypeMember(oldThisType, oldDecl, oldIsOverridable, newThisType, newDecl)
               case Some(newDecl) =>
-                reportIncompatibleKindChange(oldDecl, newDecl.asInstanceOf[TermOrTypeSymbol])
+                reportProblem(ProblemKind.IncompatibleKindChange, oldDecl)
 
           case _: TypeParamSymbol =>
             () // nothing to do
@@ -113,7 +119,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
           case oldDecl: TermSymbol =>
             lookupCorrespondingTermMember(oldCtx, oldDecl, newCtx, newThisType) match
               case None =>
-                reportProblem(Problem.MissingTermMember(symInfo(oldDecl)(using oldCtx)))
+                reportProblem(ProblemKind.MissingTermMember, oldDecl)
               case Some(newDecl) =>
                 analyzeTermMember(oldThisType, oldDecl, oldIsOverridable, newThisType, newDecl)
     end for // oldDecl
@@ -129,7 +135,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
     for oldParent <- oldParents do
       val translatedOldParent = translateType(oldParent)
       if !newParents.exists(_.isSubtype(translatedOldParent)(using newCtx)) then
-        reportProblem(Problem.MissingParent(classInfo(oldClass)(using oldCtx)))
+        reportProblem(ProblemKind.MissingParent, oldClass)
   end checkClassParents
 
   private def checkSelfType(oldClass: ClassSymbol, newClass: ClassSymbol): Unit =
@@ -142,7 +148,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
       case (Some(translatedOldType), Some(newType)) => translatedOldType.isSameType(newType)(using newCtx)
       case _                                        => false
 
-    if !isCompatible then reportProblem(Problem.IncompatibleSelfTypeChange(classInfo(oldClass)(using oldCtx)))
+    if !isCompatible then reportProblem(ProblemKind.IncompatibleSelfTypeChange, oldClass)
   end checkSelfType
 
   private def checkOpenLevel(oldClass: ClassSymbol, newClass: ClassSymbol): Unit =
@@ -156,8 +162,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
       case (OpenLevel.Open, OpenLevel.Open)                        => true
       case _                                                       => false
 
-    if !isCompatible then
-      reportProblem(Problem.RestrictedOpenLevelChange(classInfo(oldClass)(using oldCtx), oldOpenLevel, newOpenLevel))
+    if !isCompatible then reportProblem(ProblemKind.RestrictedOpenLevelChange, oldClass)
   end checkOpenLevel
 
   private def analyzeClassTypeParam(oldSym: ClassTypeParamSymbol, newSym: ClassTypeParamSymbol): Unit =
@@ -166,7 +171,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
     val newBounds = newSym.bounds(using newCtx)
 
     if !isCompatibleTypeBoundsChange(translatedOldBounds, newBounds, allowNarrower = false)(using newCtx) then
-      reportProblem(Problem.IncompatibleTypeChange(symInfo(oldSym)(using oldCtx)))
+      reportProblem(ProblemKind.IncompatibleTypeChange, oldSym)
   end analyzeClassTypeParam
 
   private def analyzeTypeMember(
@@ -182,7 +187,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
     checkMemberFinal(oldSym, oldIsOverridable, newSym)
 
     def reportIncompatibleTypeChange(): Unit =
-      reportProblem(Problem.IncompatibleTypeChange(symInfo(oldSym)(using oldCtx)))
+      reportProblem(ProblemKind.IncompatibleTypeChange, oldSym)
 
     val oldTypeDef = oldSym.typeDef(using oldCtx)
     val newTypeDef = newSym.typeDef(using newCtx)
@@ -210,7 +215,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
       case _ =>
         val oldKind = symKind(oldSym)(using oldCtx)
         val newKind = symKind(newSym)(using newCtx)
-        reportIncompatibleKindChange(oldSym, oldKind, newKind)
+        reportProblem(ProblemKind.IncompatibleKindChange, oldSym)
   end analyzeTypeMember
 
   private def analyzeTermMember(
@@ -239,7 +244,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
         case _ => false
     end kindsOK
 
-    if !kindsOK then reportIncompatibleKindChange(oldSym, oldKind, newKind)
+    if !kindsOK then reportProblem(ProblemKind.IncompatibleKindChange, oldSym)
     else
       val oldType = withOldCtx(oldSym.declaredType.widenExpr)
       val translatedOldType = translateType(oldType)
@@ -249,11 +254,11 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
         isCompatibleTypeChange(translatedOldType, newType, allowSubtype = !oldIsOverridable)
       }
 
-      if !isCompatible then reportProblem(Problem.IncompatibleTypeChange(symInfo(oldSym)(using oldCtx)))
+      if !isCompatible then reportProblem(ProblemKind.IncompatibleTypeChange, oldSym)
   end analyzeTermMember
 
   private def checkMemberFinal(oldSym: TermOrTypeSymbol, oldIsOverridable: Boolean, newSym: TermOrTypeSymbol): Unit =
-    if oldIsOverridable && newSym.is(Final) then reportProblem(Problem.FinalMember(symInfo(oldSym)(using oldCtx)))
+    if oldIsOverridable && newSym.is(Final) then reportProblem(ProblemKind.FinalMember, oldSym)
   end checkMemberFinal
 
   private def checkNewAbstractMembers(
@@ -293,7 +298,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
           }
           if !oldIsAbstractEverywhere then
             // Then it is a problem
-            reportProblem(Problem.NewAbstractMember(symInfo(newDecl)(using newCtx)))
+            reportProblem(ProblemKind.NewAbstractMember, newDecl)
   end checkNewAbstractMembers
 
   private def translateType(oldType: Type): Type =
@@ -306,22 +311,12 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
 
   private def withNewCtx[A](f: Context ?=> A): A = f(using newCtx)
 
-  private def reportIncompatibleKindChange(oldSymbol: TermOrTypeSymbol, newSymbol: TermOrTypeSymbol): Unit =
-    reportIncompatibleKindChange(oldSymbol, symKind(oldSymbol)(using oldCtx), symKind(newSymbol)(using newCtx))
-
-  private def reportIncompatibleKindChange(
-    oldSymbol: TermOrTypeSymbol,
-    oldKind: SymbolKind,
-    newKind: SymbolKind
-  ): Unit =
-    reportProblem(Problem.IncompatibleKindChange(symInfo(oldSymbol)(using oldCtx), oldKind, newKind))
-
   private def checkVisibility(oldSymbol: TermOrTypeSymbol, newSymbol: TermOrTypeSymbol): Unit =
     val oldVisibility = symVisibility(oldSymbol)(using oldCtx)
     val newVisibility = symVisibility(newSymbol)(using newCtx)
 
     if !isValidVisibilityChange(oldVisibility, newVisibility) then
-      reportProblem(Problem.RestrictedVisibilityChange(SymbolInfo(pathOf(newSymbol)), oldVisibility, newVisibility))
+      reportProblem(ProblemKind.RestrictedVisibilityChange, oldSymbol)
   end checkVisibility
 
   private def isValidVisibilityChange(oldVisibility: Visibility, newVisibility: Visibility): Boolean =
@@ -344,14 +339,14 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
       case (Private, _) => true // for completeness, but dead code in practice
 
       case (PackagePrivate(oldPath), PackagePrivate(newPath)) =>
-        isValidPathChange(oldPath.path, newPath.path)
+        isValidPathChange(oldPath, newPath)
       case (PackagePrivate(oldPath), PackageProtected(newPath)) =>
-        isValidPathChange(oldPath.path, newPath.path)
+        isValidPathChange(oldPath, newPath)
 
       case (Protected, PackageProtected(_)) => true
 
       case (PackageProtected(oldPath), PackageProtected(newPath)) =>
-        isValidPathChange(oldPath.path, newPath.path)
+        isValidPathChange(oldPath, newPath)
 
       case _ => false
   end isValidVisibilityChange
@@ -401,12 +396,6 @@ private[tastymima] object Analyzer:
   def isAccessible(oldSymbol: Symbol)(using Context): Boolean =
     !oldSymbol.is(Private)
 
-  def symInfo(symbol: Symbol)(using Context): SymbolInfo =
-    SymbolInfo(pathOf(symbol))
-
-  def classInfo(symbol: Symbol)(using Context): ClassInfo =
-    ClassInfo(pathOf(symbol))
-
   /** Tests whether the given member is overridable from outside the library. */
   private def memberIsOverridable(symbol: TermOrTypeSymbol, ownerClassOpenBoundary: Set[ClassSymbol])(
     using Context
@@ -432,14 +421,14 @@ private[tastymima] object Analyzer:
         case None =>
           Visibility.Protected
         case Some(within) =>
-          if within.isPackage then Visibility.PackageProtected(symInfo(within))
+          if within.isPackage then Visibility.PackageProtected(pathOf(within))
           else Visibility.Protected
     else
       symbol.privateWithin match
         case None =>
           Visibility.Public
         case Some(within) =>
-          if within.isPackage then Visibility.PackagePrivate(symInfo(within))
+          if within.isPackage then Visibility.PackagePrivate(pathOf(within))
           else Visibility.Private
   end symVisibility
 
