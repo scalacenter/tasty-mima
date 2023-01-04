@@ -6,8 +6,6 @@ import tastyquery.Classpaths.*
 import tastyquery.Contexts
 import tastyquery.jdk.ClasspathLoaders
 
-import Problems.*
-
 object TastyMiMa:
   def analyze(
     oldClasspath: Classpath,

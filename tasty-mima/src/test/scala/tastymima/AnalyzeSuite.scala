@@ -6,7 +6,7 @@ import tastyquery.Contexts.*
 import tastyquery.Exceptions.*
 import tastyquery.Names.*
 
-import tastymima.Problems.*
+import tastymima.intf.ProblemKind
 
 class AnalyzeSuite extends munit.FunSuite:
   import AnalyzeSuite.*

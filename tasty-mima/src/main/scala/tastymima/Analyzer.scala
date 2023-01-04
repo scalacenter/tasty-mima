@@ -11,7 +11,8 @@ import tastyquery.Names.*
 import tastyquery.Symbols.*
 import tastyquery.Types.*
 
-import Problems.*
+import tastymima.intf.ProblemKind
+
 import Utils.*
 
 private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context):

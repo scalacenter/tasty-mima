@@ -48,8 +48,18 @@ lazy val root = project.in(file("."))
     publish / skip := true,
   )
 
+lazy val tastyMiMaInterface =
+  project.in(file("tasty-mima-interface"))
+    .settings(commonSettings)
+    .settings(
+      name := "tasty-mima-interface",
+      autoScalaLibrary := false,
+      crossPaths := false,
+    )
+
 lazy val tastyMiMa =
   project.in(file("tasty-mima"))
+    .dependsOn(tastyMiMaInterface)
     .settings(commonSettings)
     .settings(strictCompileSettings)
     .settings(name := "tasty-mima")
