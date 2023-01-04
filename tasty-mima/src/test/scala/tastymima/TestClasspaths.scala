@@ -1,5 +1,6 @@
 package tastymima
 
+import java.net.URL
 import java.nio.file.{FileSystems, Path, Paths}
 
 import tastyquery.Classpaths.*
@@ -8,6 +9,7 @@ import tastyquery.jdk.ClasspathLoaders
 object TestClasspaths:
   private val TestLibV1ClassPathEnvVar = "TASTYMIMA_TEST_LIBV1_CLASSPATH"
   private val TestLibV2ClassPathEnvVar = "TASTYMIMA_TEST_LIBV2_CLASSPATH"
+  private val TastyMiMaClassPathEnvVar = "TASTYMIMA_CLASSPATH"
 
   private def parsePaths(envVar: String): (List[Path], Path) =
     val stringEntries = System.getenv(envVar).nn.split(';').toList
@@ -53,4 +55,8 @@ object TestClasspaths:
     })
     (filteredClasspath, filteredEntry)
   end makeFilteredClasspath
+
+  val tastyMiMaClasspath: List[URL] =
+    val stringEntries = System.getenv(TastyMiMaClassPathEnvVar).nn.split(';').toList
+    stringEntries.map(entry => Paths.get(entry).nn.toUri().nn.toURL().nn)
 end TestClasspaths
