@@ -6,11 +6,10 @@ import tastyquery.Contexts.*
 import tastyquery.Exceptions.*
 import tastyquery.Names.*
 
-import tastymima.intf.ProblemKind
+import tastymima.intf.{ProblemKind, ProblemMatcher}
 
 class AnalyzeSuite extends munit.FunSuite:
   import AnalyzeSuite.*
-  import ProblemMatcher as PM
   import ProblemKind as PK
 
   def problemsInPackage(packageName: String): List[Problem] =
@@ -388,11 +387,6 @@ class AnalyzeSuite extends munit.FunSuite:
 end AnalyzeSuite
 
 object AnalyzeSuite:
-  final class ProblemMatcher(kind: ProblemKind, fullName: String):
-    def apply(problem: Problem): Boolean =
-      problem.kind == kind && problem.pathString == fullName
-
-    override def toString(): String =
-      s"PM(PK.$kind, \"$fullName\")"
-  end ProblemMatcher
+  def PM(kind: ProblemKind, pathString: String): ProblemMatcher =
+    ProblemMatcher.make(kind, pathString).nn
 end AnalyzeSuite
