@@ -28,28 +28,4 @@ object Problems:
     override def toString(): String =
       s"Problem($kind, $pathString)"
   end Problem
-
-  /** Visibility of a symbol, from the API point of view.
-    *
-    * Note that any qualified-private with a scope narrower than a package is
-    * considered full `private` from the API point of view. Likewise, any
-    * qualified-protected with a scope narrower than a package is considered
-    * full `protected`.
-    */
-  enum Visibility:
-    case Private
-    case PackagePrivate(scope: List[Name])
-    case Protected
-    case PackageProtected(scope: List[Name])
-    case Public
-  end Visibility
-
-  enum SymbolKind:
-    case Class, Trait, TypeAlias, AbstractTypeMember, OpaqueTypeAlias, TypeParam
-    case Module, Method, ValField, VarField, LazyValField
-  end SymbolKind
-
-  enum OpenLevel:
-    case Final, Sealed, Default, Open
-  end OpenLevel
 end Problems
