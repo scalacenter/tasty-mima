@@ -15,7 +15,7 @@ class AnalyzeSuite extends munit.FunSuite:
   def problemsInPackage(packageName: String): List[Problem] =
     val fullPackageName = "testlib." + packageName.name
     val classpaths = TestClasspaths.makeFilteredClasspaths(fullPackageName)
-    TastyMiMa.analyze(classpaths._1, classpaths._2, classpaths._3, classpaths._4)
+    new TastyMiMa().analyze(classpaths._1, classpaths._2, classpaths._3, classpaths._4)
 
   def assertProblems(using munit.Location)(actualProblems: List[Problem])(
     expectedProblemMatchers: ProblemMatcher*
