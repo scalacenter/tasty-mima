@@ -398,6 +398,17 @@ class AnalyzeSuite extends munit.FunSuite:
       PM(PK.MissingClass, "testlib.newabstractmembers.RemovedOpenSubclass")
     )
   }
+
+  test("artifact-private packages") {
+    val artifactPrivatePackages = java.util.Arrays.asList("testlib.privatepackages")
+    val config = new Config().withMoreArtifactPrivatePackages(artifactPrivatePackages).nn
+    val problems = problemsInPackage("privatepackages", config)
+
+    assertProblems(problems)(
+      PM(PK.IncompatibleTypeChange, "testlib.privatepackages.PrivatePackages.publicVal"),
+      PM(PK.IncompatibleTypeChange, "testlib.privatepackages.PrivatePackages.outerPackagePrivateVal")
+    )
+  }
 end AnalyzeSuite
 
 object AnalyzeSuite:
