@@ -48,8 +48,18 @@ lazy val root = project.in(file("."))
     publish / skip := true,
   )
 
+lazy val tastyMiMaInterface =
+  project.in(file("tasty-mima-interface"))
+    .settings(commonSettings)
+    .settings(
+      name := "tasty-mima-interface",
+      autoScalaLibrary := false,
+      crossPaths := false,
+    )
+
 lazy val tastyMiMa =
   project.in(file("tasty-mima"))
+    .dependsOn(tastyMiMaInterface)
     .settings(commonSettings)
     .settings(strictCompileSettings)
     .settings(name := "tasty-mima")
@@ -83,9 +93,12 @@ lazy val tastyMiMa =
         val cpLibV1 = makeClasspathVar((testLibV1 / Compile / fullClasspath).value)
         val cpLibV2 = makeClasspathVar((testLibV2 / Compile / fullClasspath).value)
 
+        val tastyMiMaCp = Attributed.data((Compile / fullClasspath).value).map(_.getAbsolutePath()).mkString(";")
+
         Map(
           "TASTYMIMA_TEST_LIBV1_CLASSPATH" -> cpLibV1,
           "TASTYMIMA_TEST_LIBV2_CLASSPATH" -> cpLibV2,
+          "TASTYMIMA_CLASSPATH" -> tastyMiMaCp,
         )
       }
     )
