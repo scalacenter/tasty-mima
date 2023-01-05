@@ -6,16 +6,19 @@ import tastyquery.Contexts.*
 import tastyquery.Exceptions.*
 import tastyquery.Names.*
 
-import tastymima.intf.{ProblemKind, ProblemMatcher}
+import tastymima.intf.{Config, ProblemKind, ProblemMatcher}
 
 class AnalyzeSuite extends munit.FunSuite:
   import AnalyzeSuite.*
   import ProblemKind as PK
 
-  def problemsInPackage(packageName: String): List[Problem] =
+  def problemsInPackage(packageName: String, config: Config): List[Problem] =
     val fullPackageName = "testlib." + packageName.name
     val classpaths = TestClasspaths.makeFilteredClasspaths(fullPackageName)
-    new TastyMiMa().analyze(classpaths._1, classpaths._2, classpaths._3, classpaths._4)
+    new TastyMiMa(config).analyze(classpaths._1, classpaths._2, classpaths._3, classpaths._4)
+
+  def problemsInPackage(packageName: String): List[Problem] =
+    problemsInPackage(packageName, new Config())
 
   def assertProblems(using munit.Location)(actualProblems: List[Problem])(
     expectedProblemMatchers: ProblemMatcher*
@@ -44,6 +47,17 @@ class AnalyzeSuite extends munit.FunSuite:
       PM(PK.MissingClass, "testlib.missingclasses.ClassOnlyInV1"),
       PM(PK.MissingClass, "testlib.missingclasses.ObjectContainer.ClassOnlyInV1")
     )
+  }
+
+  test("missing classes - filtered") {
+    val filters = java.util.Arrays.asList(
+      PM(PK.MissingClass, "testlib.missingclasses.ObjectContainer.ClassOnlyInV1"),
+      PM(PK.MissingClass, "testlib.missingclasses.ObjectContainer.ClassOnlyInV2")
+    )
+    val config = new Config().withMoreProblemFilters(filters).nn
+    val problems = problemsInPackage("missingclasses", config)
+
+    assertProblems(problems)(PM(PK.MissingClass, "testlib.missingclasses.ClassOnlyInV1"))
   }
 
   test("missing members") {

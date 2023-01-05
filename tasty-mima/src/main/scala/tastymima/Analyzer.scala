@@ -11,12 +11,16 @@ import tastyquery.Names.*
 import tastyquery.Symbols.*
 import tastyquery.Types.*
 
-import tastymima.intf.ProblemKind
+import tastymima.intf.{Config, ProblemKind, ProblemMatcher}
 
 import Utils.*
 
-private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context):
+private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context, val newCtx: Context):
   import Analyzer.*
+
+  private val problemFilters: List[ProblemMatcher] =
+    import scala.collection.JavaConverters.*
+    config.getProblemFilters().nn.asScala.toList
 
   private val _problems = mutable.ListBuffer.empty[Problem]
 
@@ -31,7 +35,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
     _problems.toList
 
   private def reportProblem(problem: Problem): Unit =
-    _problems += problem
+    if !problemFilters.exists(_(problem)) then _problems += problem
 
   private def reportProblem(kind: ProblemKind, path: List[Name]): Unit =
     reportProblem(Problem(kind, path))
