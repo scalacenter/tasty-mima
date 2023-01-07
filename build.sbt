@@ -44,7 +44,7 @@ val strictCompileSettings = Seq(
 )
 
 lazy val root = project.in(file("."))
-  .aggregate(tastyMiMa).settings(
+  .aggregate(tastyMiMaInterface, tastyMiMa).settings(
     publish / skip := true,
   )
 
