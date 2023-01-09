@@ -7,9 +7,9 @@ import tastyquery.Classpaths.*
 import tastyquery.Contexts
 import tastyquery.jdk.ClasspathLoaders
 
-import tastymima.intf.{Problem as IProblem, TastyMiMa as ITastyMiMa}
+import tastymima.intf.{Config, Problem as IProblem, TastyMiMa as ITastyMiMa}
 
-final class TastyMiMa extends ITastyMiMa:
+final class TastyMiMa(config: Config) extends ITastyMiMa:
   def analyze(
     oldClasspath: Classpath,
     oldClasspathEntry: Classpath.Entry,
@@ -22,7 +22,7 @@ final class TastyMiMa extends ITastyMiMa:
     val oldTopSymbols = oldCtx.findSymbolsByClasspathEntry(oldClasspathEntry).toList
     val newTopSymbols = newCtx.findSymbolsByClasspathEntry(newClasspathEntry).toList
 
-    val analyzer = new Analyzer(oldCtx, newCtx)
+    val analyzer = new Analyzer(config, oldCtx, newCtx)
     analyzer.analyzeTopSymbols(oldTopSymbols, newTopSymbols)
     analyzer.allProblems
   end analyze

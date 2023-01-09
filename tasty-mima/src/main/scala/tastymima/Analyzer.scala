@@ -11,12 +11,21 @@ import tastyquery.Names.*
 import tastyquery.Symbols.*
 import tastyquery.Types.*
 
-import tastymima.intf.ProblemKind
+import tastymima.intf.{Config, ProblemKind, ProblemMatcher}
 
 import Utils.*
 
-private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context):
+private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context, val newCtx: Context):
   import Analyzer.*
+
+  private val problemFilters: List[ProblemMatcher] =
+    import scala.collection.JavaConverters.*
+    config.getProblemFilters().nn.asScala.toList
+
+  private val artifactPrivatePackagePaths: List[List[SimpleName]] =
+    import scala.collection.JavaConverters.*
+    for stringPath <- config.getArtifactPrivatePackages().nn.asScala.toList
+    yield stringPath.split('.').toList.map(termName(_))
 
   private val _problems = mutable.ListBuffer.empty[Problem]
 
@@ -31,7 +40,7 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
     _problems.toList
 
   private def reportProblem(problem: Problem): Unit =
-    _problems += problem
+    if !problemFilters.exists(_(problem)) then _problems += problem
 
   private def reportProblem(kind: ProblemKind, path: List[Name]): Unit =
     reportProblem(Problem(kind, path))
@@ -381,6 +390,33 @@ private[tastymima] final class Analyzer(val oldCtx: Context, val newCtx: Context
 
     openBoundaryMemoized.getOrElseUpdate(cls, compute)
   end classOpenBoundary
+
+  def symVisibility(symbol: TermOrTypeSymbol)(using Context): Visibility =
+    def isArtifactPrivate(packagePath: List[Name]): Boolean =
+      artifactPrivatePackagePaths.exists(path => packagePath.startsWith(path))
+
+    if symbol.is(Private) then Visibility.Private
+    else if symbol.is(Protected) then
+      symbol.privateWithin match
+        case None =>
+          Visibility.Protected
+        case Some(within) =>
+          if within.isPackage then
+            val packagePath = pathOf(within)
+            if isArtifactPrivate(packagePath) then Visibility.Protected
+            else Visibility.PackageProtected(packagePath)
+          else Visibility.Protected
+    else
+      symbol.privateWithin match
+        case None =>
+          Visibility.Public
+        case Some(within) =>
+          if within.isPackage then
+            val packagePath = pathOf(within)
+            if isArtifactPrivate(packagePath) then Visibility.Private
+            else Visibility.PackagePrivate(packagePath)
+          else Visibility.Private
+  end symVisibility
 end Analyzer
 
 private[tastymima] object Analyzer:
@@ -438,24 +474,6 @@ private[tastymima] object Analyzer:
         !overridingSym.get.is(Final)
       }
   end memberIsOverridable
-
-  def symVisibility(symbol: TermOrTypeSymbol)(using Context): Visibility =
-    if symbol.is(Private) then Visibility.Private
-    else if symbol.is(Protected) then
-      symbol.privateWithin match
-        case None =>
-          Visibility.Protected
-        case Some(within) =>
-          if within.isPackage then Visibility.PackageProtected(pathOf(within))
-          else Visibility.Protected
-    else
-      symbol.privateWithin match
-        case None =>
-          Visibility.Public
-        case Some(within) =>
-          if within.isPackage then Visibility.PackagePrivate(pathOf(within))
-          else Visibility.Private
-  end symVisibility
 
   def symKind(symbol: TermOrTypeSymbol)(using Context): SymbolKind = symbol match
     case sym: TermSymbol =>

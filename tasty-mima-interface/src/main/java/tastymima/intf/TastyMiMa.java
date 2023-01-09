@@ -12,7 +12,7 @@ public interface TastyMiMa {
     Path newClasspathEntry
   );
 
-  static TastyMiMa newInstance(URL[] tastyMiMaClasspath, ClassLoader parent) {
-    return ReflectionLoaderImpl.newInstance(tastyMiMaClasspath, parent);
+  static TastyMiMa newInstance(URL[] tastyMiMaClasspath, ClassLoader parent, Config config) {
+    return ReflectionLoaderImpl.newInstance(tastyMiMaClasspath, parent, config);
   }
 }

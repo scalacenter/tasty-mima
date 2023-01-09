@@ -3,7 +3,7 @@ package tastymima
 import java.net.URL
 import java.util.List as JList
 
-import tastymima.intf.ProblemKind
+import tastymima.intf.{Config, ProblemKind}
 
 class JavaAPISuite extends munit.FunSuite:
   def analyzeTestLib(tastyMiMa: intf.TastyMiMa): List[intf.Problem] =
@@ -17,10 +17,10 @@ class JavaAPISuite extends munit.FunSuite:
 
   def createTastyMiMaViaReflection(): intf.TastyMiMa =
     val urls = TestClasspaths.tastyMiMaClasspath.toArray[URL | Null]
-    intf.TastyMiMa.newInstance(urls, getClass().getClassLoader()).nn
+    intf.TastyMiMa.newInstance(urls, getClass().getClassLoader(), new Config()).nn
 
   test("direct") {
-    val tastyMiMa: intf.TastyMiMa = new TastyMiMa()
+    val tastyMiMa: intf.TastyMiMa = new TastyMiMa(new Config())
     val problems = analyzeTestLib(tastyMiMa)
 
     val oneExpectedProblem =
