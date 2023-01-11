@@ -39,9 +39,12 @@ final class TastyMiMa(config: Config) extends ITastyMiMa:
     if oldEntryIndex < 0 || newEntryIndex < 0 then
       throw IllegalArgumentException("Entries must be elements of their corresponding classpatsh")
 
-    val oldTQClasspath = tastyquery.jdk.ClasspathLoaders.read(oldClasspath)
+    val allDistinctPaths = (oldClasspath ::: newClasspath).distinct
+    val pathsToEntries = allDistinctPaths.zip(tastyquery.jdk.ClasspathLoaders.read(allDistinctPaths).entries).toMap
+
+    val oldTQClasspath = Classpath(IArray.from(oldClasspath.map(pathsToEntries)))
     val oldTQEntry = oldTQClasspath.entries(oldEntryIndex)
-    val newTQClasspath = tastyquery.jdk.ClasspathLoaders.read(newClasspath)
+    val newTQClasspath = Classpath(IArray.from(newClasspath.map(pathsToEntries)))
     val newTQEntry = newTQClasspath.entries(newEntryIndex)
 
     analyze(oldTQClasspath, oldTQEntry, newTQClasspath, newTQEntry)
