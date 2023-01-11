@@ -90,48 +90,10 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
     if oldKind == SymbolKind.Class && !oldClass.is(Abstract) && newClass.is(Abstract) then
       reportProblem(ProblemKind.AbstractClass, oldClass)
 
-    val oldThisType = classThisType(oldClass)(using oldCtx)
     val newThisType = classThisType(newClass)(using newCtx)
 
     for oldDecl <- oldClass.declarations(using oldCtx) do
-      val oldVisibility = symVisibility(oldDecl)(using oldCtx)
-      val isMemberAccessible = oldVisibility match
-        case Visibility.Private   => false
-        case Visibility.Protected => openBoundary.nonEmpty
-        case _                    => true
-
-      if !isMemberAccessible then () // OK
-      else
-        def oldIsOverridable = memberIsOverridable(oldDecl, openBoundary)(using oldCtx)
-
-        oldDecl match
-          case oldDecl: ClassSymbol =>
-            newClass.getDecl(oldDecl.name)(using newCtx) match
-              case None =>
-                reportProblem(ProblemKind.MissingClass, oldDecl)
-              case Some(newDecl: ClassSymbol) =>
-                analyzeClass(oldDecl, newDecl)
-              case Some(newDecl: TypeSymbolWithBounds) =>
-                reportProblem(ProblemKind.IncompatibleKindChange, oldDecl)
-
-          case oldDecl: TypeMemberSymbol =>
-            memberNotFoundToOption(newThisType.member(oldDecl.name)(using newCtx)) match
-              case None =>
-                reportProblem(ProblemKind.MissingTypeMember, oldDecl)
-              case Some(newDecl: TypeMemberSymbol) =>
-                analyzeTypeMember(oldThisType, oldDecl, oldIsOverridable, newThisType, newDecl)
-              case Some(newDecl) =>
-                reportProblem(ProblemKind.IncompatibleKindChange, oldDecl)
-
-          case _: TypeParamSymbol =>
-            () // nothing to do
-
-          case oldDecl: TermSymbol =>
-            lookupCorrespondingTermMember(oldCtx, oldDecl, newCtx, newThisType) match
-              case None =>
-                reportProblem(ProblemKind.MissingTermMember, oldDecl)
-              case Some(newDecl) =>
-                analyzeTermMember(oldThisType, oldDecl, oldIsOverridable, newThisType, newDecl)
+      analyzeMemberOfClass(openBoundary, oldDecl, newClass, newThisType)
     end for // oldDecl
 
     if openBoundary.nonEmpty && newClass.isAnyOf(Abstract | Trait) then
@@ -184,8 +146,53 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
       reportProblem(ProblemKind.IncompatibleTypeChange, oldSym)
   end analyzeClassTypeParam
 
+  private def analyzeMemberOfClass(
+    openBoundary: Set[ClassSymbol],
+    oldDecl: TermOrTypeSymbol,
+    newClass: ClassSymbol,
+    newThisType: ThisType
+  ): Unit =
+    val oldVisibility = symVisibility(oldDecl)(using oldCtx)
+    val isMemberAccessible = oldVisibility match
+      case Visibility.Private   => false
+      case Visibility.Protected => openBoundary.nonEmpty
+      case _                    => true
+
+    if !isMemberAccessible then () // OK
+    else
+      def oldIsOverridable = memberIsOverridable(oldDecl, openBoundary)(using oldCtx)
+
+      oldDecl match
+        case oldDecl: ClassSymbol =>
+          newClass.getDecl(oldDecl.name)(using newCtx) match
+            case None =>
+              reportProblem(ProblemKind.MissingClass, oldDecl)
+            case Some(newDecl: ClassSymbol) =>
+              analyzeClass(oldDecl, newDecl)
+            case Some(newDecl: TypeSymbolWithBounds) =>
+              reportProblem(ProblemKind.IncompatibleKindChange, oldDecl)
+
+        case oldDecl: TypeMemberSymbol =>
+          memberNotFoundToOption(newThisType.member(oldDecl.name)(using newCtx)) match
+            case None =>
+              reportProblem(ProblemKind.MissingTypeMember, oldDecl)
+            case Some(newDecl: TypeMemberSymbol) =>
+              analyzeTypeMember(oldDecl, oldIsOverridable, newThisType, newDecl)
+            case Some(newDecl) =>
+              reportProblem(ProblemKind.IncompatibleKindChange, oldDecl)
+
+        case _: TypeParamSymbol =>
+          () // nothing to do
+
+        case oldDecl: TermSymbol =>
+          lookupCorrespondingTermMember(oldCtx, oldDecl, newCtx, newThisType) match
+            case None =>
+              reportProblem(ProblemKind.MissingTermMember, oldDecl)
+            case Some(newDecl) =>
+              analyzeTermMember(oldDecl, oldIsOverridable, newThisType, newDecl)
+  end analyzeMemberOfClass
+
   private def analyzeTypeMember(
-    oldPrefix: Type,
     oldSym: TypeMemberSymbol,
     oldIsOverridable: Boolean,
     newPrefix: Type,
@@ -229,7 +236,6 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
   end analyzeTypeMember
 
   private def analyzeTermMember(
-    oldPrefix: ThisType,
     oldSym: TermSymbol,
     oldIsOverridable: Boolean,
     newPrefix: ThisType,
