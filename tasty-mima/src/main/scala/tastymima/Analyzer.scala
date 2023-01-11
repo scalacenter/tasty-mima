@@ -31,9 +31,11 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
 
   def analyzeTopSymbols(oldTopSymbols: List[Symbol], newTopSymbols: List[Symbol]): Unit =
     for topSymbol <- oldTopSymbols do
-      topSymbol match
-        case topClass: ClassSymbol => analyzeTopClass(topClass)
-        case _                     => ()
+      protect(topSymbol) {
+        topSymbol match
+          case topClass: ClassSymbol => analyzeTopClass(topClass)
+          case _                     => ()
+      }
   end analyzeTopSymbols
 
   def allProblems: List[Problem] =
@@ -81,19 +83,23 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
 
     val openBoundary = classOpenBoundary(oldClass)(using oldCtx)
 
-    checkClassParents(oldClass, newClass)
+    protect(oldClass) {
+      checkClassParents(oldClass, newClass)
 
-    if openBoundary.nonEmpty then checkSelfType(oldClass, newClass)
+      if openBoundary.nonEmpty then checkSelfType(oldClass, newClass)
 
-    checkOpenLevel(oldClass, newClass)
+      checkOpenLevel(oldClass, newClass)
 
-    if oldKind == SymbolKind.Class && !oldClass.is(Abstract) && newClass.is(Abstract) then
-      reportProblem(ProblemKind.AbstractClass, oldClass)
+      if oldKind == SymbolKind.Class && !oldClass.is(Abstract) && newClass.is(Abstract) then
+        reportProblem(ProblemKind.AbstractClass, oldClass)
+    }
 
     val newThisType = classThisType(newClass)(using newCtx)
 
     for oldDecl <- oldClass.declarations(using oldCtx) do
-      analyzeMemberOfClass(openBoundary, oldDecl, newClass, newThisType)
+      protect(oldDecl) {
+        analyzeMemberOfClass(openBoundary, oldDecl, newClass, newThisType)
+      }
     end for // oldDecl
 
     if openBoundary.nonEmpty && newClass.isAnyOf(Abstract | Trait) then
@@ -298,7 +304,9 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
       (): Unit // : Unit to prevent scalafmt from killing this line
     else
       for case (newDecl: TermSymbol) <- newClass.declarations(using newCtx) do
-        checkNewMaybeAbstractTermMember(commonOpenBoundary, newDecl)
+        protect(newDecl) {
+          checkNewMaybeAbstractTermMember(commonOpenBoundary, newDecl)
+        }
   end checkNewAbstractMembers
 
   private def checkNewMaybeAbstractTermMember(
@@ -429,6 +437,13 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
             else Visibility.PackagePrivate(packagePath)
           else Visibility.Private
   end symVisibility
+
+  private def protect(problemSym: Symbol)(op: => Unit): Unit =
+    try op
+    catch
+      case error: Exception =>
+        reportProblem(Problem(ProblemKind.InternalError, pathOf(problemSym), error))
+  end protect
 end Analyzer
 
 private[tastymima] object Analyzer:

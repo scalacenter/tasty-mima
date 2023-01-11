@@ -33,6 +33,8 @@ public interface Problem {
         return "The symbol " + path + " has an incompatible type in current version";
       case NewAbstractMember:
         return "The member " + path + " was concrete or did not exist but is abstract in current version";
+      case InternalError:
+        return "Internal error while checking symbol " + path;
       default:
         return "Unknown problem " + getKind() + " about symbol " + path;
     }

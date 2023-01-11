@@ -13,5 +13,6 @@ public enum ProblemKind {
   FinalMember,
   TypeArgumentCountMismatch,
   IncompatibleTypeChange,
-  NewAbstractMember;
+  NewAbstractMember,
+  InternalError;
 }
