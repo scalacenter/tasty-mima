@@ -293,29 +293,35 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
       yield (oldSubclass, newSubclass)
 
     if commonOpenBoundary.isEmpty then
-      // Fast path, nothing to do (fast-path because the `commonOpenBoundary.forall` would always be true)
+      // Fast path, nothing to do
+      // (fast-path because the `commonOpenBoundary.forall` in checkNewMaybeAbstractTermMember would always be true)
       (): Unit // : Unit to prevent scalafmt from killing this line
     else
-      // For each abstract term member in the new class, ...
-      for
-        case (newDecl: TermSymbol) <- newClass.declarations(using newCtx)
-        if newDecl.is(Abstract) && newDecl.name != nme.Constructor
-      do
-        // If it is actually abstract in at least one subclass of the open boundary, ...
-        val newIsActuallyAbstract = commonOpenBoundary.exists { (oldSubclass, newSubclass) =>
-          isActuallyAbstractIn(newDecl, newSubclass)(using newCtx)
-        }
-        if newIsActuallyAbstract then
-          // Unless it was already actually abstract in 'old' in *all* the subclasses of the open boundary, ...
-          val oldIsAbstractEverywhere = commonOpenBoundary.forall { (oldSubclass, newSubclass) =>
-            lookupCorrespondingTermMember(newCtx, newDecl, oldCtx, classThisType(oldSubclass)(using oldCtx)) match
-              case None          => false
-              case Some(oldDecl) => isActuallyAbstractIn(oldDecl, oldSubclass)(using oldCtx)
-          }
-          if !oldIsAbstractEverywhere then
-            // Then it is a problem
-            reportProblem(ProblemKind.NewAbstractMember, newDecl)
+      for case (newDecl: TermSymbol) <- newClass.declarations(using newCtx) do
+        checkNewMaybeAbstractTermMember(commonOpenBoundary, newDecl)
   end checkNewAbstractMembers
+
+  private def checkNewMaybeAbstractTermMember(
+    commonOpenBoundary: Set[(ClassSymbol, ClassSymbol)],
+    newDecl: TermSymbol
+  ): Unit =
+    // If the member is abstract
+    if newDecl.is(Abstract) && newDecl.name != nme.Constructor then
+      // If it is actually abstract in at least one subclass of the open boundary, ...
+      val newIsActuallyAbstract = commonOpenBoundary.exists { (oldSubclass, newSubclass) =>
+        isActuallyAbstractIn(newDecl, newSubclass)(using newCtx)
+      }
+      if newIsActuallyAbstract then
+        // Unless it was already actually abstract in 'old' in *all* the subclasses of the open boundary, ...
+        val oldIsAbstractEverywhere = commonOpenBoundary.forall { (oldSubclass, newSubclass) =>
+          lookupCorrespondingTermMember(newCtx, newDecl, oldCtx, classThisType(oldSubclass)(using oldCtx)) match
+            case None          => false
+            case Some(oldDecl) => isActuallyAbstractIn(oldDecl, oldSubclass)(using oldCtx)
+        }
+        if !oldIsAbstractEverywhere then
+          // Then it is a problem
+          reportProblem(ProblemKind.NewAbstractMember, newDecl)
+  end checkNewMaybeAbstractTermMember
 
   private def translateType(oldType: Type): Type =
     new TypeTranslator(oldCtx, newCtx).translateType(oldType)
