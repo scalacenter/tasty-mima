@@ -31,9 +31,11 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
 
   def analyzeTopSymbols(oldTopSymbols: List[Symbol], newTopSymbols: List[Symbol]): Unit =
     for topSymbol <- oldTopSymbols do
-      topSymbol match
-        case topClass: ClassSymbol => analyzeTopClass(topClass)
-        case _                     => ()
+      protect(topSymbol) {
+        topSymbol match
+          case topClass: ClassSymbol => analyzeTopClass(topClass)
+          case _                     => ()
+      }
   end analyzeTopSymbols
 
   def allProblems: List[Problem] =
@@ -81,57 +83,23 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
 
     val openBoundary = classOpenBoundary(oldClass)(using oldCtx)
 
-    checkClassParents(oldClass, newClass)
+    protect(oldClass) {
+      checkClassParents(oldClass, newClass)
 
-    if openBoundary.nonEmpty then checkSelfType(oldClass, newClass)
+      if openBoundary.nonEmpty then checkSelfType(oldClass, newClass)
 
-    checkOpenLevel(oldClass, newClass)
+      checkOpenLevel(oldClass, newClass)
 
-    if oldKind == SymbolKind.Class && !oldClass.is(Abstract) && newClass.is(Abstract) then
-      reportProblem(ProblemKind.AbstractClass, oldClass)
+      if oldKind == SymbolKind.Class && !oldClass.is(Abstract) && newClass.is(Abstract) then
+        reportProblem(ProblemKind.AbstractClass, oldClass)
+    }
 
-    val oldThisType = classThisType(oldClass)(using oldCtx)
     val newThisType = classThisType(newClass)(using newCtx)
 
     for oldDecl <- oldClass.declarations(using oldCtx) do
-      val oldVisibility = symVisibility(oldDecl)(using oldCtx)
-      val isMemberAccessible = oldVisibility match
-        case Visibility.Private   => false
-        case Visibility.Protected => openBoundary.nonEmpty
-        case _                    => true
-
-      if !isMemberAccessible then () // OK
-      else
-        def oldIsOverridable = memberIsOverridable(oldDecl, openBoundary)(using oldCtx)
-
-        oldDecl match
-          case oldDecl: ClassSymbol =>
-            newClass.getDecl(oldDecl.name)(using newCtx) match
-              case None =>
-                reportProblem(ProblemKind.MissingClass, oldDecl)
-              case Some(newDecl: ClassSymbol) =>
-                analyzeClass(oldDecl, newDecl)
-              case Some(newDecl: TypeSymbolWithBounds) =>
-                reportProblem(ProblemKind.IncompatibleKindChange, oldDecl)
-
-          case oldDecl: TypeMemberSymbol =>
-            memberNotFoundToOption(newThisType.member(oldDecl.name)(using newCtx)) match
-              case None =>
-                reportProblem(ProblemKind.MissingTypeMember, oldDecl)
-              case Some(newDecl: TypeMemberSymbol) =>
-                analyzeTypeMember(oldThisType, oldDecl, oldIsOverridable, newThisType, newDecl)
-              case Some(newDecl) =>
-                reportProblem(ProblemKind.IncompatibleKindChange, oldDecl)
-
-          case _: TypeParamSymbol =>
-            () // nothing to do
-
-          case oldDecl: TermSymbol =>
-            lookupCorrespondingTermMember(oldCtx, oldDecl, newCtx, newThisType) match
-              case None =>
-                reportProblem(ProblemKind.MissingTermMember, oldDecl)
-              case Some(newDecl) =>
-                analyzeTermMember(oldThisType, oldDecl, oldIsOverridable, newThisType, newDecl)
+      protect(oldDecl) {
+        analyzeMemberOfClass(openBoundary, oldDecl, newClass, newThisType)
+      }
     end for // oldDecl
 
     if openBoundary.nonEmpty && newClass.isAnyOf(Abstract | Trait) then
@@ -184,8 +152,53 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
       reportProblem(ProblemKind.IncompatibleTypeChange, oldSym)
   end analyzeClassTypeParam
 
+  private def analyzeMemberOfClass(
+    openBoundary: Set[ClassSymbol],
+    oldDecl: TermOrTypeSymbol,
+    newClass: ClassSymbol,
+    newThisType: ThisType
+  ): Unit =
+    val oldVisibility = symVisibility(oldDecl)(using oldCtx)
+    val isMemberAccessible = oldVisibility match
+      case Visibility.Private   => false
+      case Visibility.Protected => openBoundary.nonEmpty
+      case _                    => true
+
+    if !isMemberAccessible then () // OK
+    else
+      def oldIsOverridable = memberIsOverridable(oldDecl, openBoundary)(using oldCtx)
+
+      oldDecl match
+        case oldDecl: ClassSymbol =>
+          newClass.getDecl(oldDecl.name)(using newCtx) match
+            case None =>
+              reportProblem(ProblemKind.MissingClass, oldDecl)
+            case Some(newDecl: ClassSymbol) =>
+              analyzeClass(oldDecl, newDecl)
+            case Some(newDecl: TypeSymbolWithBounds) =>
+              reportProblem(ProblemKind.IncompatibleKindChange, oldDecl)
+
+        case oldDecl: TypeMemberSymbol =>
+          memberNotFoundToOption(newThisType.member(oldDecl.name)(using newCtx)) match
+            case None =>
+              reportProblem(ProblemKind.MissingTypeMember, oldDecl)
+            case Some(newDecl: TypeMemberSymbol) =>
+              analyzeTypeMember(oldDecl, oldIsOverridable, newThisType, newDecl)
+            case Some(newDecl) =>
+              reportProblem(ProblemKind.IncompatibleKindChange, oldDecl)
+
+        case _: TypeParamSymbol =>
+          () // nothing to do
+
+        case oldDecl: TermSymbol =>
+          lookupCorrespondingTermMember(oldCtx, oldDecl, newCtx, newThisType) match
+            case None =>
+              reportProblem(ProblemKind.MissingTermMember, oldDecl)
+            case Some(newDecl) =>
+              analyzeTermMember(oldDecl, oldIsOverridable, newThisType, newDecl)
+  end analyzeMemberOfClass
+
   private def analyzeTypeMember(
-    oldPrefix: Type,
     oldSym: TypeMemberSymbol,
     oldIsOverridable: Boolean,
     newPrefix: Type,
@@ -229,7 +242,6 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
   end analyzeTypeMember
 
   private def analyzeTermMember(
-    oldPrefix: ThisType,
     oldSym: TermSymbol,
     oldIsOverridable: Boolean,
     newPrefix: ThisType,
@@ -287,29 +299,37 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
       yield (oldSubclass, newSubclass)
 
     if commonOpenBoundary.isEmpty then
-      // Fast path, nothing to do (fast-path because the `commonOpenBoundary.forall` would always be true)
+      // Fast path, nothing to do
+      // (fast-path because the `commonOpenBoundary.forall` in checkNewMaybeAbstractTermMember would always be true)
       (): Unit // : Unit to prevent scalafmt from killing this line
     else
-      // For each abstract term member in the new class, ...
-      for
-        case (newDecl: TermSymbol) <- newClass.declarations(using newCtx)
-        if newDecl.is(Abstract) && newDecl.name != nme.Constructor
-      do
-        // If it is actually abstract in at least one subclass of the open boundary, ...
-        val newIsActuallyAbstract = commonOpenBoundary.exists { (oldSubclass, newSubclass) =>
-          isActuallyAbstractIn(newDecl, newSubclass)(using newCtx)
+      for case (newDecl: TermSymbol) <- newClass.declarations(using newCtx) do
+        protect(newDecl) {
+          checkNewMaybeAbstractTermMember(commonOpenBoundary, newDecl)
         }
-        if newIsActuallyAbstract then
-          // Unless it was already actually abstract in 'old' in *all* the subclasses of the open boundary, ...
-          val oldIsAbstractEverywhere = commonOpenBoundary.forall { (oldSubclass, newSubclass) =>
-            lookupCorrespondingTermMember(newCtx, newDecl, oldCtx, classThisType(oldSubclass)(using oldCtx)) match
-              case None          => false
-              case Some(oldDecl) => isActuallyAbstractIn(oldDecl, oldSubclass)(using oldCtx)
-          }
-          if !oldIsAbstractEverywhere then
-            // Then it is a problem
-            reportProblem(ProblemKind.NewAbstractMember, newDecl)
   end checkNewAbstractMembers
+
+  private def checkNewMaybeAbstractTermMember(
+    commonOpenBoundary: Set[(ClassSymbol, ClassSymbol)],
+    newDecl: TermSymbol
+  ): Unit =
+    // If the member is abstract
+    if newDecl.is(Abstract) && newDecl.name != nme.Constructor then
+      // If it is actually abstract in at least one subclass of the open boundary, ...
+      val newIsActuallyAbstract = commonOpenBoundary.exists { (oldSubclass, newSubclass) =>
+        isActuallyAbstractIn(newDecl, newSubclass)(using newCtx)
+      }
+      if newIsActuallyAbstract then
+        // Unless it was already actually abstract in 'old' in *all* the subclasses of the open boundary, ...
+        val oldIsAbstractEverywhere = commonOpenBoundary.forall { (oldSubclass, newSubclass) =>
+          lookupCorrespondingTermMember(newCtx, newDecl, oldCtx, classThisType(oldSubclass)(using oldCtx)) match
+            case None          => false
+            case Some(oldDecl) => isActuallyAbstractIn(oldDecl, oldSubclass)(using oldCtx)
+        }
+        if !oldIsAbstractEverywhere then
+          // Then it is a problem
+          reportProblem(ProblemKind.NewAbstractMember, newDecl)
+  end checkNewMaybeAbstractTermMember
 
   private def translateType(oldType: Type): Type =
     new TypeTranslator(oldCtx, newCtx).translateType(oldType)
@@ -417,6 +437,13 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
             else Visibility.PackagePrivate(packagePath)
           else Visibility.Private
   end symVisibility
+
+  private def protect(problemSym: Symbol)(op: => Unit): Unit =
+    try op
+    catch
+      case error: Exception =>
+        reportProblem(Problem(ProblemKind.InternalError, pathOf(problemSym), error))
+  end protect
 end Analyzer
 
 private[tastymima] object Analyzer:
