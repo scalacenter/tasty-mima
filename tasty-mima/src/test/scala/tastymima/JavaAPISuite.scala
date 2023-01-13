@@ -7,7 +7,7 @@ import tastymima.intf.{Config, ProblemKind}
 
 class JavaAPISuite extends munit.FunSuite:
   def analyzeTestLib(tastyMiMa: intf.TastyMiMa): List[intf.Problem] =
-    import scala.collection.JavaConverters.*
+    import scala.jdk.CollectionConverters.*
     import TestClasspaths.*
 
     val javaProblems =
