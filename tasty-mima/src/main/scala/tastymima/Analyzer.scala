@@ -19,11 +19,11 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
   import Analyzer.*
 
   private val problemFilters: List[ProblemMatcher] =
-    import scala.collection.JavaConverters.*
+    import scala.jdk.CollectionConverters.*
     config.getProblemFilters().nn.asScala.toList
 
   private val artifactPrivatePackagePaths: List[List[SimpleName]] =
-    import scala.collection.JavaConverters.*
+    import scala.jdk.CollectionConverters.*
     for stringPath <- config.getArtifactPrivatePackages().nn.asScala.toList
     yield stringPath.split('.').toList.map(termName(_))
 

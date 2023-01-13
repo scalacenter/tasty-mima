@@ -56,7 +56,7 @@ final class TastyMiMa(config: Config) extends ITastyMiMa:
     newClasspath: JList[Path],
     newClasspathEntry: Path
   ): JList[IProblem] =
-    import scala.collection.JavaConverters.*
+    import scala.jdk.CollectionConverters.*
 
     val problems =
       analyze(oldClasspath.asScala.toList, oldClasspathEntry, newClasspath.asScala.toList, newClasspathEntry)
