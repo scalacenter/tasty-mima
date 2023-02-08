@@ -14,4 +14,10 @@ final class TypeMemberTypeChanges:
   opaque type OpaqueTypeAliasOtherBounds >: List[Nothing] <: java.io.Serializable = List[Int]
   opaque type OpaqueTypeAliasSameErasedAlias >: List[Nothing] <: Seq[AnyVal] = List[AnyVal]
   opaque type OpaqueTypeAliasOtherErasedAlias >: List[Nothing] <: Seq[AnyVal] = Seq[Int]
+
+  opaque type PolyOpaqueTypeAliasSameAll[A] >: List[Nothing] <: Seq[AnyVal] = List[Int]
+  opaque type PolyOpaqueTypeAliasSubBounds[A] >: List[Int] <: Seq[Int] = List[Int]
+  opaque type PolyOpaqueTypeAliasOtherBounds[A] >: List[Nothing] <: java.io.Serializable = List[Int]
+  opaque type PolyOpaqueTypeAliasSameErasedAlias[A] >: List[Nothing] <: Seq[AnyVal] = List[AnyVal]
+  opaque type PolyOpaqueTypeAliasOtherErasedAlias[A] >: List[Nothing] <: Seq[AnyVal] = Seq[Int]
 end TypeMemberTypeChanges

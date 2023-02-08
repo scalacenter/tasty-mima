@@ -199,7 +199,17 @@ class AnalyzeSuite extends munit.FunSuite:
       PM(PK.IncompatibleTypeChange, "testlib.membertypechanges.TypeMemberTypeChanges.AbstractTypeOtherBounds"),
       // Opaque type alias
       PM(PK.IncompatibleTypeChange, "testlib.membertypechanges.TypeMemberTypeChanges.OpaqueTypeAliasOtherBounds"),
-      PM(PK.IncompatibleTypeChange, "testlib.membertypechanges.TypeMemberTypeChanges.OpaqueTypeAliasOtherErasedAlias")
+      PM(PK.IncompatibleTypeChange, "testlib.membertypechanges.TypeMemberTypeChanges.OpaqueTypeAliasOtherErasedAlias"),
+      // Polymorphic type alias
+      PM(PK.IncompatibleTypeChange, "testlib.membertypechanges.TypeMemberTypeChanges.PolyOpaqueTypeAliasOtherBounds"),
+      PM(
+        PK.IncompatibleTypeChange,
+        "testlib.membertypechanges.TypeMemberTypeChanges.PolyOpaqueTypeAliasSameErasedAlias"
+      ),
+      PM(
+        PK.IncompatibleTypeChange,
+        "testlib.membertypechanges.TypeMemberTypeChanges.PolyOpaqueTypeAliasOtherErasedAlias"
+      )
     )
   }
 
