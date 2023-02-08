@@ -416,12 +416,10 @@ class AnalyzeSuite extends munit.FunSuite:
     assertProblems(problems)(
       // Setting up an internal error later on
       PM(PK.MissingTypeMember, "testlib.internalerrors.InternalErrors.RemovedTypeMember"),
-      // tasty-query bug (cannot erase OrType's yet)
-      PM(PK.InternalError, "testlib.internalerrors.InternalErrors.orTypeInSignature"),
-      PM(PK.InternalError, "testlib.internalerrors.InternalErrors.newAbstractWithOrTypeInSignature"),
       // "Legit" internal error: translating a reference to a type member that does not exist anymore
       PM(PK.InternalError, "testlib.internalerrors.InternalErrors.referenceToRemovedTypeMember"),
       // Assert that we can still detect normal errors afterwards
+      PM(PK.NewAbstractMember, "testlib.internalerrors.InternalErrors.newAbstractWithOrTypeInSignature"),
       PM(PK.MissingTermMember, "testlib.internalerrors.InternalErrors.regularTypeProblem")
     )
   }
