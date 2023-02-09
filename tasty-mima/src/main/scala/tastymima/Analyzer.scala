@@ -231,9 +231,18 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
         if !isCompatibleTypeBoundsChange(translatedOldBounds, newBounds, allowNarrower)(using newCtx) then
           reportIncompatibleTypeChange()
 
-        val oldErasedAlias = ErasedTypeRef.erase(oldAlias)(using oldCtx)
-        val newErasedAlias = ErasedTypeRef.erase(newAlias)(using newCtx)
-        if oldErasedAlias.toSigFullName != newErasedAlias.toSigFullName then reportIncompatibleTypeChange()
+        if oldAlias.isInstanceOf[TypeLambda] || newAlias.isInstanceOf[TypeLambda] then
+          /* If either side is a TypeLambda, the types must be equivalent to guarantee
+           * that the erasure is always the same, no matter the actual type param.
+           */
+          val translatedOldAlias = translateType(oldAlias)
+          if !translatedOldAlias.isSameType(newAlias)(using newCtx) then reportIncompatibleTypeChange()
+        else
+          // Otherwise, the type can change as long as the erasure remains the same
+          val oldErasedAlias = ErasedTypeRef.erase(oldAlias)(using oldCtx)
+          val newErasedAlias = ErasedTypeRef.erase(newAlias)(using newCtx)
+          if oldErasedAlias.toSigFullName != newErasedAlias.toSigFullName then reportIncompatibleTypeChange()
+        end if
 
       case _ =>
         val oldKind = symKind(oldSym)(using oldCtx)

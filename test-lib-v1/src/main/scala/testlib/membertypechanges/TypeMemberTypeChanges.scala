@@ -14,4 +14,10 @@ final class TypeMemberTypeChanges:
   opaque type OpaqueTypeAliasOtherBounds >: List[Nothing] <: Seq[AnyVal] = List[Int]
   opaque type OpaqueTypeAliasSameErasedAlias >: List[Nothing] <: Seq[AnyVal] = List[Int]
   opaque type OpaqueTypeAliasOtherErasedAlias >: List[Nothing] <: Seq[AnyVal] = List[Int]
+
+  opaque type PolyOpaqueTypeAliasSameAll[A] >: List[Nothing] <: Seq[AnyVal] = List[Int]
+  opaque type PolyOpaqueTypeAliasSubBounds[A] >: List[Nothing] <: Seq[AnyVal] = List[Int]
+  opaque type PolyOpaqueTypeAliasOtherBounds[A] >: List[Nothing] <: Seq[AnyVal] = List[Int]
+  opaque type PolyOpaqueTypeAliasSameErasedAlias[A] >: List[Nothing] <: Seq[AnyVal] = List[Int]
+  opaque type PolyOpaqueTypeAliasOtherErasedAlias[A] >: List[Nothing] <: Seq[AnyVal] = List[Int]
 end TypeMemberTypeChanges
