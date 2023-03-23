@@ -52,9 +52,9 @@ final class TypeTranslations:
     val appliedTypeTyconChanged: scala.collection.immutable.IndexedSeq[Int] = Vector.empty
     val appliedTypeArgsChanged: scala.collection.immutable.List[String] = Nil
 
-    // ExprType
-    val exprTypeSame: (=> String) => String = x => x
-    val exprTypeChanged: (=> Int) => String = x => x.toString()
+    // ByNameType
+    val byNameTypeSame: (=> String) => String = x => x
+    val byNameTypeChanged: (=> Int) => String = x => x.toString()
 
     // MethodType
     def methodTypeSame(y: Container, x: Container): y.TypeMember = y.termOfTypeMember

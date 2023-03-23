@@ -51,9 +51,9 @@ final class TypeTranslations:
     val appliedTypeTyconChanged: scala.collection.immutable.List[Int] = Nil
     val appliedTypeArgsChanged: scala.collection.immutable.List[Int] = Nil
 
-    // ExprType
-    val exprTypeSame: (=> String) => String = x => x
-    val exprTypeChanged: (=> String) => String = x => x
+    // ByNameType
+    val byNameTypeSame: (=> String) => String = x => x
+    val byNameTypeChanged: (=> String) => String = x => x
 
     // MethodType + TermParamRef
     def methodTypeSame(x: Container, y: Container): x.TypeMember = x.termOfTypeMember

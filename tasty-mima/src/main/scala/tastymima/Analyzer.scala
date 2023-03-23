@@ -179,7 +179,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
               reportProblem(ProblemKind.IncompatibleKindChange, oldDecl)
 
         case oldDecl: TypeMemberSymbol =>
-          memberNotFoundToOption(newThisType.member(oldDecl.name)(using newCtx)) match
+          memberNotFoundToOption(newThisType.select(oldDecl.name)(using newCtx).optSymbol(using newCtx)).flatten match
             case None =>
               reportProblem(ProblemKind.MissingTypeMember, oldDecl)
             case Some(newDecl: TypeMemberSymbol) =>
@@ -277,9 +277,9 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
 
     if !kindsOK then reportProblem(ProblemKind.IncompatibleKindChange, oldSym)
     else
-      val oldType = withOldCtx(oldSym.declaredType.widenExpr)
+      val oldType = withOldCtx(oldSym.declaredType)
       val translatedOldType = translateType(oldType)
-      val newType = withNewCtx(newSym.declaredType.widenExpr.asSeenFrom(newPrefix, newSym.owner))
+      val newType = withNewCtx(newSym.declaredType.asSeenFrom(newPrefix, newSym.owner))
 
       val isCompatible = withNewCtx {
         isCompatibleTypeChange(translatedOldType, newType, allowSubtype = !oldIsOverridable)
@@ -543,10 +543,8 @@ private[tastymima] object Analyzer:
     toCtx: Context,
     toThisType: ThisType
   ): Option[TermSymbol] =
-    val signedName =
-      if fromDecl.is(Method) && fromDecl.declaredType(using fromCtx).isInstanceOf[ExprType] then fromDecl.name
-      else fromDecl.signedName(using fromCtx)
-    memberNotFoundToOption(toThisType.member(signedName)(using toCtx).asTerm)
+    val signedName = fromDecl.signedName(using fromCtx)
+    memberNotFoundToOption(toThisType.select(signedName)(using toCtx).symbol(using toCtx))
   end lookupCorrespondingTermMember
 
   private def isActuallyAbstractIn(sym: TermSymbol, subclass: ClassSymbol)(using Context): Boolean =

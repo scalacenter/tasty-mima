@@ -281,7 +281,7 @@ class AnalyzeSuite extends munit.FunSuite:
       PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.appliedTypeTyconChanged"),
       PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.appliedTypeArgsChanged"),
       // ExprType
-      PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.exprTypeChanged"),
+      PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.byNameTypeChanged"),
       // MethodType + TermParamRef
       PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.methodTypeChanged"),
       // PolyType + TypeParamRef

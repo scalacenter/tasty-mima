@@ -16,8 +16,8 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
         oldType.prefix match
           case oldPrefix: Type =>
             val translatedPrefix = translateType(oldPrefix)
-            oldType.symbol(using oldCtx) match
-              case oldSym: ClassTypeParamSymbol =>
+            oldType.optSymbol(using oldCtx) match
+              case Some(oldSym: ClassTypeParamSymbol) =>
                 translateClassTypeParamRef(translatedPrefix, oldSym)
               case _ =>
                 NamedType(translatedPrefix, oldType.name)(using newCtx)
@@ -41,8 +41,8 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
       case oldType: AppliedType =>
         AppliedType(translateType(oldType.tycon), oldType.args.map(translateType(_)))
 
-      case oldType: ExprType =>
-        ExprType(translateType(oldType.resultType))
+      case oldType: ByNameType =>
+        ByNameType(translateType(oldType.resultType))
 
       case oldType: TermLambdaType =>
         oldType.companion(oldType.paramNames)(
@@ -86,23 +86,11 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
         val translatedRecType = translatedBinders.get(oldType.binders).nn.asInstanceOf[RecType]
         translatedRecType.recThis
 
-      case oldType: MatchTypeCase =>
-        MatchTypeCase(translateType(oldType.pattern), translateType(oldType.result))
-
       case oldType: MatchType =>
         val translatedBound = translateType(oldType.bound)
         val translatedScrutinee = translateType(oldType.scrutinee)
-        val translatedCases: List[MatchTypeCase | TypeLambda] = oldType.cases.map {
-          case tpCase: MatchTypeCase => translateType(tpCase).asInstanceOf[MatchTypeCase]
-          case tpCase: TypeLambda    => translateType(tpCase).asInstanceOf[TypeLambda]
-        }
+        val translatedCases = oldType.cases.map(translateMatchTypeCase(_))
         MatchType(translatedBound, translatedScrutinee, translatedCases)
-
-      case oldType: BoundedType =>
-        BoundedType(translateTypeBounds(oldType.bounds), oldType.alias.map(translateType(_)))
-
-      case oldType: NamedTypeBounds =>
-        NamedTypeBounds(oldType.name, translateTypeBounds(oldType.bounds))
 
       case oldType: WildcardTypeBounds =>
         WildcardTypeBounds(translateTypeBounds(oldType.bounds))
@@ -136,6 +124,17 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
     }
     TypeRef(translatedPrefix, translatedSym)
   end translateClassTypeParamRef
+
+  private def translateMatchTypeCase(oldCase: MatchTypeCase): MatchTypeCase =
+    MatchTypeCase(oldCase.paramNames)(
+      { tmc =>
+        translatedBinders.put(oldCase, tmc)
+        oldCase.paramTypeBounds.map(translateTypeBounds(_))
+      },
+      tmc => translateType(oldCase.pattern),
+      tmc => translateType(oldCase.result)
+    )
+  end translateMatchTypeCase
 
   private def withOldCtx[A](f: Context ?=> A): A = f(using oldCtx)
 
