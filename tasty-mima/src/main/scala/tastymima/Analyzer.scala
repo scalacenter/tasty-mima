@@ -179,7 +179,8 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
               reportProblem(ProblemKind.IncompatibleKindChange, oldDecl)
 
         case oldDecl: TypeMemberSymbol =>
-          memberNotFoundToOption(newThisType.select(oldDecl.name)(using newCtx).optSymbol(using newCtx)).flatten match
+          // Search with getDecl for private members, but fall back on getMember for inherited members
+          newClass.getDecl(oldDecl.name)(using newCtx).orElse(newClass.getMember(oldDecl.name)(using newCtx)) match
             case None =>
               reportProblem(ProblemKind.MissingTypeMember, oldDecl)
             case Some(newDecl: TypeMemberSymbol) =>
@@ -191,7 +192,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
           () // nothing to do
 
         case oldDecl: TermSymbol =>
-          lookupCorrespondingTermMember(oldCtx, oldDecl, newCtx, newThisType) match
+          lookupCorrespondingTermMember(oldCtx, oldDecl, newCtx, newClass) match
             case None =>
               reportProblem(ProblemKind.MissingTermMember, oldDecl)
             case Some(newDecl) =>
@@ -331,7 +332,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
       if newIsActuallyAbstract then
         // Unless it was already actually abstract in 'old' in *all* the subclasses of the open boundary, ...
         val oldIsAbstractEverywhere = commonOpenBoundary.forall { (oldSubclass, newSubclass) =>
-          lookupCorrespondingTermMember(newCtx, newDecl, oldCtx, classThisType(oldSubclass)(using oldCtx)) match
+          lookupCorrespondingTermMember(newCtx, newDecl, oldCtx, oldSubclass) match
             case None          => false
             case Some(oldDecl) => isActuallyAbstractIn(oldDecl, oldSubclass)(using oldCtx)
         }
@@ -541,10 +542,11 @@ private[tastymima] object Analyzer:
     fromCtx: Context,
     fromDecl: TermSymbol,
     toCtx: Context,
-    toThisType: ThisType
+    toClass: ClassSymbol
   ): Option[TermSymbol] =
+    // Search with getDecl for private members, but fall back on getMember for inherited members
     val signedName = fromDecl.signedName(using fromCtx)
-    memberNotFoundToOption(toThisType.select(signedName)(using toCtx).symbol(using toCtx))
+    toClass.getDecl(signedName)(using toCtx).orElse(toClass.getMember(signedName)(using toCtx))
   end lookupCorrespondingTermMember
 
   private def isActuallyAbstractIn(sym: TermSymbol, subclass: ClassSymbol)(using Context): Boolean =
