@@ -290,6 +290,12 @@ class AnalyzeSuite extends munit.FunSuite:
       PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.TypeLambdaChanged"),
       // AnnotatedType
       PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.annotatedTypeChanged"),
+      // TypeRefinement
+      PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.typeRefinementTypeChanged"),
+      // TermRefinement
+      PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.termRefinementTypeChanged"),
+      // MatchType
+      PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.MatchTypeChanged"),
       // WildcardTypeBounds
       PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.wildcardTypeBoundsChanged"),
       // OrType
