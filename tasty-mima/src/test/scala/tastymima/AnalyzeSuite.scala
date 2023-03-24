@@ -281,7 +281,7 @@ class AnalyzeSuite extends munit.FunSuite:
       PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.appliedTypeTyconChanged"),
       PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.appliedTypeArgsChanged"),
       // ExprType
-      PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.exprTypeChanged"),
+      PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.byNameTypeChanged"),
       // MethodType + TermParamRef
       PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.methodTypeChanged"),
       // PolyType + TypeParamRef
@@ -290,6 +290,12 @@ class AnalyzeSuite extends munit.FunSuite:
       PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.TypeLambdaChanged"),
       // AnnotatedType
       PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.annotatedTypeChanged"),
+      // TypeRefinement
+      PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.typeRefinementTypeChanged"),
+      // TermRefinement
+      PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.termRefinementTypeChanged"),
+      // MatchType
+      PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.MatchTypeChanged"),
       // WildcardTypeBounds
       PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.wildcardTypeBoundsChanged"),
       // OrType

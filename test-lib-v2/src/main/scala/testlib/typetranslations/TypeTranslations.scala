@@ -52,9 +52,9 @@ final class TypeTranslations:
     val appliedTypeTyconChanged: scala.collection.immutable.IndexedSeq[Int] = Vector.empty
     val appliedTypeArgsChanged: scala.collection.immutable.List[String] = Nil
 
-    // ExprType
-    val exprTypeSame: (=> String) => String = x => x
-    val exprTypeChanged: (=> Int) => String = x => x.toString()
+    // ByNameType
+    val byNameTypeSame: (=> String) => String = x => x
+    val byNameTypeChanged: (=> Int) => String = x => x.toString()
 
     // MethodType
     def methodTypeSame(y: Container, x: Container): y.TypeMember = y.termOfTypeMember
@@ -72,7 +72,21 @@ final class TypeTranslations:
     val annotatedTypeSame: Int @inline = 1
     val annotatedTypeChanged: String @inline = "foo"
 
-    // TODO (not supported by tasty-query subtyping yet): RefinementType's (incl. RecType's), MatchType's
+    // TypeRefinement
+    def typeRefinementTypeSame: Container { type TypeMember = Int } = ???
+    def typeRefinementTypeChanged: Container { type TypeMember = String } = ???
+
+    // TermRefinement
+    def termRefinementTypeSame: Container { val termMember: ::[Int] } = ???
+    def termRefinementTypeChanged: Container { val termMember: ::[String] } = ???
+
+    // MatchType
+    type MatchTypeSame[T] = T match
+      case Int     => String
+      case List[t] => t
+    type MatchTypeChanged[T] = T match
+      case Int     => String
+      case List[t] => Int
 
     // WildcardTypeBounds
     val wildcardTypeBoundsSame: mutable.Seq[? <: Product] = mutable.Seq.empty
@@ -92,13 +106,14 @@ object TypeTranslations:
   abstract class Container:
     type TypeMember
 
-    val termMember: Int = 1
+    val termMember: Product
     val termOfTypeMember: TypeMember
   end Container
 
   class ConcreteContainer extends Container:
     type TypeMember = Int
 
+    val termMember: Product = Some(1)
     val termOfTypeMember: TypeMember = 1
   end ConcreteContainer
 end TypeTranslations

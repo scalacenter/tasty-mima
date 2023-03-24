@@ -179,7 +179,8 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
               reportProblem(ProblemKind.IncompatibleKindChange, oldDecl)
 
         case oldDecl: TypeMemberSymbol =>
-          memberNotFoundToOption(newThisType.member(oldDecl.name)(using newCtx)) match
+          // Search with getDecl for private members, but fall back on getMember for inherited members
+          newClass.getDecl(oldDecl.name)(using newCtx).orElse(newClass.getMember(oldDecl.name)(using newCtx)) match
             case None =>
               reportProblem(ProblemKind.MissingTypeMember, oldDecl)
             case Some(newDecl: TypeMemberSymbol) =>
@@ -191,7 +192,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
           () // nothing to do
 
         case oldDecl: TermSymbol =>
-          lookupCorrespondingTermMember(oldCtx, oldDecl, newCtx, newThisType) match
+          lookupCorrespondingTermMember(oldCtx, oldDecl, newCtx, newClass) match
             case None =>
               reportProblem(ProblemKind.MissingTermMember, oldDecl)
             case Some(newDecl) =>
@@ -277,9 +278,9 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
 
     if !kindsOK then reportProblem(ProblemKind.IncompatibleKindChange, oldSym)
     else
-      val oldType = withOldCtx(oldSym.declaredType.widenExpr)
+      val oldType = withOldCtx(oldSym.declaredType)
       val translatedOldType = translateType(oldType)
-      val newType = withNewCtx(newSym.declaredType.widenExpr.asSeenFrom(newPrefix, newSym.owner))
+      val newType = withNewCtx(newSym.declaredType.asSeenFrom(newPrefix, newSym.owner))
 
       val isCompatible = withNewCtx {
         isCompatibleTypeChange(translatedOldType, newType, allowSubtype = !oldIsOverridable)
@@ -331,7 +332,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
       if newIsActuallyAbstract then
         // Unless it was already actually abstract in 'old' in *all* the subclasses of the open boundary, ...
         val oldIsAbstractEverywhere = commonOpenBoundary.forall { (oldSubclass, newSubclass) =>
-          lookupCorrespondingTermMember(newCtx, newDecl, oldCtx, classThisType(oldSubclass)(using oldCtx)) match
+          lookupCorrespondingTermMember(newCtx, newDecl, oldCtx, oldSubclass) match
             case None          => false
             case Some(oldDecl) => isActuallyAbstractIn(oldDecl, oldSubclass)(using oldCtx)
         }
@@ -541,12 +542,11 @@ private[tastymima] object Analyzer:
     fromCtx: Context,
     fromDecl: TermSymbol,
     toCtx: Context,
-    toThisType: ThisType
+    toClass: ClassSymbol
   ): Option[TermSymbol] =
-    val signedName =
-      if fromDecl.is(Method) && fromDecl.declaredType(using fromCtx).isInstanceOf[ExprType] then fromDecl.name
-      else fromDecl.signedName(using fromCtx)
-    memberNotFoundToOption(toThisType.member(signedName)(using toCtx).asTerm)
+    // Search with getDecl for private members, but fall back on getMember for inherited members
+    val signedName = fromDecl.signedName(using fromCtx)
+    toClass.getDecl(signedName)(using toCtx).orElse(toClass.getMember(signedName)(using toCtx))
   end lookupCorrespondingTermMember
 
   private def isActuallyAbstractIn(sym: TermSymbol, subclass: ClassSymbol)(using Context): Boolean =
