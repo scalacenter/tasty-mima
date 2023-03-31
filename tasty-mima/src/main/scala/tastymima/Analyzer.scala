@@ -239,9 +239,12 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
           val translatedOldAlias = translateType(oldAlias)
           if !translatedOldAlias.isSameType(newAlias)(using newCtx) then reportIncompatibleTypeChange()
         else
-          // Otherwise, the type can change as long as the erasure remains the same
-          val oldErasedAlias = ErasedTypeRef.erase(oldAlias)(using oldCtx)
-          val newErasedAlias = ErasedTypeRef.erase(newAlias)(using newCtx)
+          /* Otherwise, the type can change as long as the erasure remains the same.
+           * Since opaque type aliases only exist in Scala 3, we always erase for that language.
+           */
+          import tastyquery.SourceLanguage.Scala3
+          val oldErasedAlias = ErasedTypeRef.erase(oldAlias, Scala3)(using oldCtx)
+          val newErasedAlias = ErasedTypeRef.erase(newAlias, Scala3)(using newCtx)
           if oldErasedAlias.toSigFullName != newErasedAlias.toSigFullName then reportIncompatibleTypeChange()
         end if
 
