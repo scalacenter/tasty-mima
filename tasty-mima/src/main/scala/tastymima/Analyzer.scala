@@ -416,10 +416,19 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
       if cls.is(Final) then Set.empty
       else if cls.is(Sealed) then
         cls.sealedChildren.toSet.flatMap {
-          case childClass: ClassSymbol => classOpenBoundary(childClass)
-          case childTerm: TermSymbol   => Set.empty
+          case childClass: ClassSymbol =>
+            /* #36 If a sealed class has local children, it appears itself in
+             * its `sealedChildren` list. Since local child classes can never
+             * be extended from outside, they do not contribute to the open
+             * boundary. We must cut it off here to avoid an infinite recursion.
+             */
+            if childClass == cls then Set.empty
+            else classOpenBoundary(childClass)
+          case childTerm: TermSymbol =>
+            Set.empty
         }
       else Set(cls)
+    end compute
 
     openBoundaryMemoized.getOrElseUpdate(cls, compute)
   end classOpenBoundary
