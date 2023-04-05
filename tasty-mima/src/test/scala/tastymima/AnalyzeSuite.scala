@@ -213,6 +213,17 @@ class AnalyzeSuite extends munit.FunSuite:
     )
   }
 
+  test("open boundaries") {
+    // The tests here are a proxy for ensuring we correctly compute open boundaries
+
+    val problems = problemsInPackage("openboundaries")
+
+    assertProblems(problems)(
+      PM(PK.IncompatibleTypeChange, "testlib.openboundaries.LocalChildClass.changingPublic"),
+      PM(PK.IncompatibleTypeChange, "testlib.openboundaries.SomeEnum.changingPublic")
+    )
+  }
+
   test("class type parameters") {
     val problems = problemsInPackage("classtypeparams")
 
