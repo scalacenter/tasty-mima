@@ -144,6 +144,8 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
   end checkOpenLevel
 
   private def analyzeClassTypeParam(oldSym: ClassTypeParamSymbol, newSym: ClassTypeParamSymbol): Unit =
+    if oldSym.name != newSym.name then reportProblem(ProblemKind.IncompatibleNameChange, oldSym)
+
     val oldBounds = oldSym.bounds(using oldCtx)
     val translatedOldBounds = translateTypeBounds(oldBounds)
     val newBounds = newSym.bounds(using newCtx)
