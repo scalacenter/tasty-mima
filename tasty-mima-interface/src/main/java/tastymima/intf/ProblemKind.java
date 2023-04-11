@@ -12,6 +12,7 @@ public enum ProblemKind {
   AbstractClass,
   FinalMember,
   TypeArgumentCountMismatch,
+  IncompatibleNameChange,
   IncompatibleTypeChange,
   NewAbstractMember,
   InternalError;

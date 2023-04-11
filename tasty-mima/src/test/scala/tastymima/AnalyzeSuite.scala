@@ -229,6 +229,7 @@ class AnalyzeSuite extends munit.FunSuite:
 
     assertProblems(problems)(
       // From ClassTypeParams.scala
+      PM(PK.IncompatibleNameChange, "testlib.classtypeparams.ClassTypeParams.A"),
       PM(PK.IncompatibleTypeChange, "testlib.classtypeparams.ClassTypeParams.a3"),
       PM(PK.IncompatibleTypeChange, "testlib.classtypeparams.ClassTypeParams.b3"),
       PM(PK.IncompatibleTypeChange, "testlib.classtypeparams.ClassTypeParams.Inner.c4"),
@@ -236,7 +237,9 @@ class AnalyzeSuite extends munit.FunSuite:
       PM(PK.TypeArgumentCountMismatch, "testlib.classtypeparams.ClassTypeParams.ArgCountMismatch"),
       // From ClassTypeParamBounds.scala
       PM(PK.IncompatibleTypeChange, "testlib.classtypeparams.ClassTypeParamBounds.B"),
-      PM(PK.IncompatibleTypeChange, "testlib.classtypeparams.ClassTypeParamBounds.C")
+      PM(PK.IncompatibleTypeChange, "testlib.classtypeparams.ClassTypeParamBounds.C"),
+      PM(PK.IncompatibleNameChange, "testlib.classtypeparams.ClassTypeParamBounds.A"),
+      PM(PK.IncompatibleNameChange, "testlib.classtypeparams.ClassTypeParamBounds.B")
     )
   }
 
