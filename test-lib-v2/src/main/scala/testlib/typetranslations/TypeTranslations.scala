@@ -80,6 +80,10 @@ final class TypeTranslations:
     def termRefinementTypeSame: Container { val termMember: ::[Int] } = ???
     def termRefinementTypeChanged: Container { val termMember: ::[String] } = ???
 
+    // RecType + RecThis
+    def recTypeSame: Container { type Foo = TypeMember } = ???
+    def recTypeChanged: Container { type Foo = termMember.type } = ???
+
     // MatchType
     type MatchTypeSame[T] = T match
       case Int     => String

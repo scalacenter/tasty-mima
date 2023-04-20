@@ -308,6 +308,8 @@ class AnalyzeSuite extends munit.FunSuite:
       PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.typeRefinementTypeChanged"),
       // TermRefinement
       PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.termRefinementTypeChanged"),
+      // RecType + RecThis
+      PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.recTypeChanged"),
       // MatchType
       PM(PK.IncompatibleTypeChange, "testlib.typetranslations.TypeTranslations.Tests.MatchTypeChanged"),
       // WildcardTypeBounds

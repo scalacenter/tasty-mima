@@ -74,7 +74,12 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
         TypeRefinement(translateType(oldType.parent), oldType.refinedName, translateTypeBounds(oldType.refinedBounds))
 
       case oldType: TermRefinement =>
-        TermRefinement(translateType(oldType.parent), oldType.refinedName, translateType(oldType.refinedType))
+        TermRefinement(
+          translateType(oldType.parent),
+          oldType.isStable,
+          oldType.refinedName,
+          translateType(oldType.refinedType)
+        )
 
       case oldType: RecType =>
         RecType({ rt =>
@@ -100,6 +105,9 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
 
       case oldType: AndType =>
         AndType(translateType(oldType.first), translateType(oldType.second))
+
+      case oldType: SkolemType =>
+        throw InvalidProgramStructureException(s"Unexpected skolem type $oldType")
 
       case oldType: CustomTransientGroundType =>
         throw InvalidProgramStructureException(s"Unexpected custom transient type $oldType")
