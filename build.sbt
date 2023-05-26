@@ -3,7 +3,7 @@ val rtJarOpt = taskKey[Option[String]]("Path to rt.jar if it exists")
 val javalibEntry = taskKey[String]("Path to rt.jar or \"jrt:/\"")
 
 inThisBuild(Def.settings(
-  crossScalaVersions := Seq("3.2.2"),
+  crossScalaVersions := Seq("3.3.0"),
   scalaVersion := crossScalaVersions.value.head,
 
   scalacOptions ++= Seq(
@@ -74,7 +74,7 @@ lazy val tastyMiMa =
       testFrameworks += new TestFramework("munit.Framework")
     )
     .settings(
-      libraryDependencies += "ch.epfl.scala" %% "tasty-query" % "0.7.4",
+      libraryDependencies += "ch.epfl.scala" %% "tasty-query" % "0.8.0",
 
       Test / rtJarOpt := {
         for (bootClasspath <- Option(System.getProperty("sun.boot.class.path"))) yield {
