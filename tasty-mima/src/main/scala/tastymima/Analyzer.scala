@@ -50,6 +50,12 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
   private def reportProblem(kind: ProblemKind, symbol: Symbol): Unit =
     reportProblem(kind, pathOf(symbol))
 
+  private def reportProblem(kind: ProblemKind, symbol: Symbol, details: Matchable): Unit =
+    reportProblem(Problem(kind, pathOf(symbol), details))
+
+  private def reportProblem(kind: ProblemKind, symbol: Symbol, before: Matchable, after: Matchable): Unit =
+    reportProblem(kind, symbol, Problem.BeforeAfter(before, after))
+
   private def analyzeTopClass(oldTopClass: ClassSymbol): Unit =
     val oldVisibility = symVisibility(oldTopClass)(using oldCtx)
     val isTopAccessible = oldVisibility != Visibility.Private && oldVisibility != Visibility.Protected
@@ -70,13 +76,13 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
     val oldKind = symKind(oldClass)(using oldCtx)
     val newKind = symKind(newClass)(using newCtx)
     if oldKind != newKind then
-      reportProblem(ProblemKind.IncompatibleKindChange, oldClass)
+      reportProblem(ProblemKind.IncompatibleKindChange, oldClass, oldKind, newKind)
       return // things can severely break further down, in that case
 
     val oldTypeParams = oldClass.typeParams(using oldCtx)
     val newTypeParams = newClass.typeParams(using newCtx)
     if oldTypeParams.sizeCompare(newTypeParams) != 0 then
-      reportProblem(ProblemKind.TypeArgumentCountMismatch, oldClass)
+      reportProblem(ProblemKind.TypeArgumentCountMismatch, oldClass, oldTypeParams.size, newTypeParams.size)
       return // things can severely break further down, in that case
     for (oldTypeParam, newTypeParam) <- oldTypeParams.zip(newTypeParams) do
       analyzeClassTypeParam(oldTypeParam, newTypeParam)
@@ -113,7 +119,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
     for oldParent <- oldParents do
       val translatedOldParent = translateType(oldParent)
       if !newParents.exists(_.isSubtype(translatedOldParent)(using newCtx)) then
-        reportProblem(ProblemKind.MissingParent, oldClass)
+        reportProblem(ProblemKind.MissingParent, oldClass, oldParent)
   end checkClassParents
 
   private def checkSelfType(oldClass: ClassSymbol, newClass: ClassSymbol): Unit =
@@ -126,7 +132,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
       case (Some(translatedOldType), Some(newType)) => translatedOldType.isSameType(newType)(using newCtx)
       case _                                        => false
 
-    if !isCompatible then reportProblem(ProblemKind.IncompatibleSelfTypeChange, oldClass)
+    if !isCompatible then reportProblem(ProblemKind.IncompatibleSelfTypeChange, oldClass, oldSelfType, newSelfType)
   end checkSelfType
 
   private def checkOpenLevel(oldClass: ClassSymbol, newClass: ClassSymbol): Unit =
@@ -140,18 +146,19 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
       case (OpenLevel.Open, OpenLevel.Open)                        => true
       case _                                                       => false
 
-    if !isCompatible then reportProblem(ProblemKind.RestrictedOpenLevelChange, oldClass)
+    if !isCompatible then reportProblem(ProblemKind.RestrictedOpenLevelChange, oldClass, oldOpenLevel, newOpenLevel)
   end checkOpenLevel
 
   private def analyzeClassTypeParam(oldSym: ClassTypeParamSymbol, newSym: ClassTypeParamSymbol): Unit =
-    if oldSym.name != newSym.name then reportProblem(ProblemKind.IncompatibleNameChange, oldSym)
+    if oldSym.name != newSym.name then
+      reportProblem(ProblemKind.IncompatibleNameChange, oldSym, oldSym.name, newSym.name)
 
     val oldBounds = oldSym.bounds(using oldCtx)
     val translatedOldBounds = translateTypeBounds(oldBounds)
     val newBounds = newSym.bounds(using newCtx)
 
     if !isCompatibleTypeBoundsChange(translatedOldBounds, newBounds, allowNarrower = false)(using newCtx) then
-      reportProblem(ProblemKind.IncompatibleTypeChange, oldSym)
+      reportProblem(ProblemKind.IncompatibleTypeChange, oldSym, oldBounds, newBounds)
   end analyzeClassTypeParam
 
   private def analyzeMemberOfClass(
@@ -170,6 +177,8 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
     else
       def oldIsOverridable = memberIsOverridable(oldDecl, openBoundary)(using oldCtx)
 
+      def oldKind = symKind(oldDecl)(using oldCtx)
+
       oldDecl match
         case oldDecl: ClassSymbol =>
           newClass.getDecl(oldDecl.name)(using newCtx) match
@@ -178,7 +187,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
             case Some(newDecl: ClassSymbol) =>
               analyzeClass(oldDecl, newDecl)
             case Some(newDecl: TypeSymbolWithBounds) =>
-              reportProblem(ProblemKind.IncompatibleKindChange, oldDecl)
+              reportProblem(ProblemKind.IncompatibleKindChange, oldDecl, oldKind, symKind(newDecl)(using newCtx))
 
         case oldDecl: TypeMemberSymbol =>
           // Search with getDecl for private members, but fall back on getMember for inherited members
@@ -188,7 +197,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
             case Some(newDecl: TypeMemberSymbol) =>
               analyzeTypeMember(oldDecl, oldIsOverridable, newThisType, newDecl)
             case Some(newDecl) =>
-              reportProblem(ProblemKind.IncompatibleKindChange, oldDecl)
+              reportProblem(ProblemKind.IncompatibleKindChange, oldDecl, oldKind, symKind(newDecl)(using newCtx))
 
         case _: TypeParamSymbol =>
           () // nothing to do
@@ -212,8 +221,8 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
     checkVisibility(oldSym, newSym)
     checkMemberFinal(oldSym, oldIsOverridable, newSym)
 
-    def reportIncompatibleTypeChange(): Unit =
-      reportProblem(ProblemKind.IncompatibleTypeChange, oldSym)
+    def reportIncompatibleTypeChange(before: Matchable, after: Matchable): Unit =
+      reportProblem(ProblemKind.IncompatibleTypeChange, oldSym, before, after)
 
     val oldTypeDef = oldSym.typeDef(using oldCtx)
     val newTypeDef = newSym.typeDef(using newCtx)
@@ -222,24 +231,25 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
     (oldTypeDef, newTypeDef) match
       case (TMDef.TypeAlias(oldAlias), TMDef.TypeAlias(newAlias)) =>
         val translatedOldAlias = translateType(oldAlias)
-        if !translatedOldAlias.isSameType(newAlias)(using newCtx) then reportIncompatibleTypeChange()
+        if !translatedOldAlias.isSameType(newAlias)(using newCtx) then reportIncompatibleTypeChange(oldAlias, newAlias)
 
       case (TMDef.AbstractType(oldBounds), TMDef.AbstractType(newBounds)) =>
         val translatedOldBounds = translateTypeBounds(oldBounds)
         if !isCompatibleTypeBoundsChange(translatedOldBounds, newBounds, allowNarrower)(using newCtx) then
-          reportIncompatibleTypeChange()
+          reportIncompatibleTypeChange(oldBounds, newBounds)
 
       case (TMDef.OpaqueTypeAlias(oldBounds, oldAlias), TMDef.OpaqueTypeAlias(newBounds, newAlias)) =>
         val translatedOldBounds = translateTypeBounds(oldBounds)
         if !isCompatibleTypeBoundsChange(translatedOldBounds, newBounds, allowNarrower)(using newCtx) then
-          reportIncompatibleTypeChange()
+          reportIncompatibleTypeChange(oldBounds, newBounds)
 
         if oldAlias.isInstanceOf[TypeLambda] || newAlias.isInstanceOf[TypeLambda] then
           /* If either side is a TypeLambda, the types must be equivalent to guarantee
            * that the erasure is always the same, no matter the actual type param.
            */
           val translatedOldAlias = translateType(oldAlias)
-          if !translatedOldAlias.isSameType(newAlias)(using newCtx) then reportIncompatibleTypeChange()
+          if !translatedOldAlias.isSameType(newAlias)(using newCtx) then
+            reportIncompatibleTypeChange(oldAlias, newAlias)
         else
           /* Otherwise, the type can change as long as the erasure remains the same.
            * Since opaque type aliases only exist in Scala 3, we always erase for that language.
@@ -247,13 +257,14 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
           import tastyquery.SourceLanguage.Scala3
           val oldErasedAlias = ErasedTypeRef.erase(oldAlias, Scala3)(using oldCtx)
           val newErasedAlias = ErasedTypeRef.erase(newAlias, Scala3)(using newCtx)
-          if oldErasedAlias.toSigFullName != newErasedAlias.toSigFullName then reportIncompatibleTypeChange()
+          if oldErasedAlias.toSigFullName != newErasedAlias.toSigFullName then
+            reportIncompatibleTypeChange(oldErasedAlias, newErasedAlias)
         end if
 
       case _ =>
         val oldKind = symKind(oldSym)(using oldCtx)
         val newKind = symKind(newSym)(using newCtx)
-        reportProblem(ProblemKind.IncompatibleKindChange, oldSym)
+        reportProblem(ProblemKind.IncompatibleKindChange, oldSym, oldKind, newKind)
   end analyzeTypeMember
 
   private def analyzeTermMember(
@@ -281,7 +292,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
         case _ => false
     end kindsOK
 
-    if !kindsOK then reportProblem(ProblemKind.IncompatibleKindChange, oldSym)
+    if !kindsOK then reportProblem(ProblemKind.IncompatibleKindChange, oldSym, oldKind, newKind)
     else
       val oldType = withOldCtx(oldSym.declaredType)
       val translatedOldType = translateType(oldType)
@@ -291,7 +302,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
         isCompatibleTypeChange(translatedOldType, newType, allowSubtype = !oldIsOverridable)
       }
 
-      if !isCompatible then reportProblem(ProblemKind.IncompatibleTypeChange, oldSym)
+      if !isCompatible then reportProblem(ProblemKind.IncompatibleTypeChange, oldSym, oldType, newType)
   end analyzeTermMember
 
   private def checkMemberFinal(oldSym: TermOrTypeSymbol, oldIsOverridable: Boolean, newSym: TermOrTypeSymbol): Unit =
@@ -361,7 +372,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
     val newVisibility = symVisibility(newSymbol)(using newCtx)
 
     if !isValidVisibilityChange(oldVisibility, newVisibility) then
-      reportProblem(ProblemKind.RestrictedVisibilityChange, oldSymbol)
+      reportProblem(ProblemKind.RestrictedVisibilityChange, oldSymbol, oldVisibility, newVisibility)
   end checkVisibility
 
   private def isValidVisibilityChange(oldVisibility: Visibility, newVisibility: Visibility): Boolean =
@@ -466,7 +477,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
     try op
     catch
       case error: Exception =>
-        reportProblem(Problem(ProblemKind.InternalError, pathOf(problemSym), error))
+        reportProblem(ProblemKind.InternalError, problemSym, error)
   end protect
 end Analyzer
 
@@ -484,15 +495,44 @@ private[tastymima] object Analyzer:
     case Protected
     case PackageProtected(scope: List[Name])
     case Public
+
+    override def toString(): String = this match
+      case Private                 => "private"
+      case PackagePrivate(scope)   => scope.mkString("package[", ".", "]")
+      case Protected               => "protected"
+      case PackageProtected(scope) => scope.mkString("protected[", ".", "]")
+      case Public                  => "public"
+    end toString
   end Visibility
 
   enum SymbolKind:
     case Class, Trait, TypeAlias, AbstractTypeMember, OpaqueTypeAlias, TypeParam
     case Module, Method, ValField, VarField, LazyValField
+
+    override def toString(): String = this match
+      case Class              => "class"
+      case Trait              => "trait"
+      case TypeAlias          => "type alias"
+      case AbstractTypeMember => "abstract type member"
+      case OpaqueTypeAlias    => "opaque type alias"
+      case TypeParam          => "type parameter"
+      case Module             => "object"
+      case Method             => "def"
+      case ValField           => "val"
+      case VarField           => "var"
+      case LazyValField       => "lazy val"
+    end toString
   end SymbolKind
 
   enum OpenLevel:
     case Final, Sealed, Default, Open
+
+    override def toString(): String = this match
+      case Final   => "final"
+      case Sealed  => "sealed"
+      case Default => "(default)"
+      case Open    => "open"
+    end toString
   end OpenLevel
 
   def classTypeRef(cls: ClassSymbol)(using Context): TypeRef =
