@@ -1,10 +1,13 @@
 package tastymima
 
 import tastyquery.Names.*
+import tastyquery.Types.*
 
 import tastymima.intf.{ProblemKind, Problem as IProblem}
 
 final class Problem(val kind: ProblemKind, val path: List[Name], val details: Matchable) extends IProblem:
+  import Problem.*
+
   def this(kind: ProblemKind, path: List[Name]) = this(kind, path, ())
 
   val pathString: String =
@@ -17,13 +20,23 @@ final class Problem(val kind: ProblemKind, val path: List[Name], val details: Ma
   def getPathString(): String = pathString
 
   override def getDescription(): String | Null =
-    (kind, details) match
-      case (ProblemKind.InternalError, error: Throwable) =>
-        s"${super.getDescription()}: $error"
-      case _ =>
-        super.getDescription()
+    val superDesc = super.getDescription()
+
+    if details == () then superDesc
+    else s"$superDesc: ${detailsString(details)}"
   end getDescription
+
+  private def detailsString(details: Matchable): String = details match
+    case details: TypeMappable => details.showBasic
+    case details: BeforeAfter  => s"before: ${detailsString(details.before)}; after: ${detailsString(details.after)}"
+    case _                     => details.toString()
+  end detailsString
 
   override def toString(): String =
     s"Problem($kind, $pathString)"
+end Problem
+
+object Problem:
+  /** Used as `details` for a `Problem` when there is something to show "before" and "after". */
+  final case class BeforeAfter(before: Matchable, after: Matchable)
 end Problem
