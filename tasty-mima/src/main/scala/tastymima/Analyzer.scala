@@ -203,7 +203,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
         case oldDecl: TermSymbol =>
           lookupCorrespondingTermMember(oldCtx, oldDecl, newCtx, newClass) match
             case None =>
-              reportProblem(ProblemKind.MissingTermMember, oldDecl)
+              reportProblem(ProblemKind.MissingTermMember, oldDecl, oldDecl.signature(using oldCtx))
             case Some(newDecl) =>
               analyzeTermMember(oldDecl, oldIsOverridable, newThisType, newDecl)
   end analyzeMemberOfClass
@@ -351,7 +351,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
         }
         if !oldIsAbstractEverywhere then
           // Then it is a problem
-          reportProblem(ProblemKind.NewAbstractMember, newDecl)
+          reportProblem(ProblemKind.NewAbstractMember, newDecl, newDecl.signature(using newCtx))
   end checkNewMaybeAbstractTermMember
 
   private def translateType(oldType: Type): Type =

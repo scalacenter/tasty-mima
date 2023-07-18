@@ -2,6 +2,7 @@ package tastymima
 
 import tastyquery.Modifiers.*
 import tastyquery.Names.*
+import tastyquery.Signatures.*
 import tastyquery.Types.*
 
 import tastymima.intf.{ProblemKind, Problem as IProblem}
@@ -21,10 +22,20 @@ final class Problem(val kind: ProblemKind, val path: List[Name], val details: Ma
   def getPathString(): String = pathString
 
   override def getDescription(): String | Null =
-    val superDesc = super.getDescription()
+    (kind, details) match
+      // Better sentence structure than putting `details` at the end for some combinations
 
-    if details == () then superDesc
-    else s"$superDesc: ${detailsString(details)}"
+      case (ProblemKind.MissingTermMember, details: Signature) =>
+        s"The member ${getPathString()} with signature $details does not have a correspondant in current version"
+      case (ProblemKind.NewAbstractMember, details: Signature) =>
+        s"The member ${getPathString()} with signature $details "
+          + "was concrete or did not exist but is abstract in current version"
+
+      case _ =>
+        val superDesc = super.getDescription()
+
+        if details == () then superDesc
+        else s"$superDesc: ${detailsString(details)}"
   end getDescription
 
   private def detailsString(details: Matchable): String = details match
