@@ -57,7 +57,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
     reportProblem(kind, symbol, Problem.BeforeAfter(before, after))
 
   private def analyzeTopClass(oldTopClass: ClassSymbol): Unit =
-    val oldVisibility = symVisibility(oldTopClass)(using oldCtx)
+    val oldVisibility = symVisibility(oldTopClass)
     val isTopAccessible = oldVisibility != Visibility.Private && oldVisibility != Visibility.Protected
 
     if !isTopAccessible then () // OK
@@ -73,8 +73,8 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
   private def analyzeClass(oldClass: ClassSymbol, newClass: ClassSymbol): Unit =
     checkVisibility(oldClass, newClass)
 
-    val oldKind = symKind(oldClass)(using oldCtx)
-    val newKind = symKind(newClass)(using newCtx)
+    val oldKind = symKind(oldClass)
+    val newKind = symKind(newClass)
     if oldKind != newKind then
       reportProblem(ProblemKind.IncompatibleKindChange, oldClass, oldKind, newKind)
       return // things can severely break further down, in that case
@@ -100,11 +100,9 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
         reportProblem(ProblemKind.AbstractClass, oldClass)
     }
 
-    val newThisType = classThisType(newClass)(using newCtx)
-
     for oldDecl <- oldClass.declarations(using oldCtx) do
       protect(oldDecl) {
-        analyzeMemberOfClass(openBoundary, oldDecl, newClass, newThisType)
+        analyzeMemberOfClass(openBoundary, oldDecl, newClass)
       }
     end for // oldDecl
 
@@ -163,10 +161,9 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
   private def analyzeMemberOfClass(
     openBoundary: Set[ClassSymbol],
     oldDecl: TermOrTypeSymbol,
-    newClass: ClassSymbol,
-    newThisType: ThisType
+    newClass: ClassSymbol
   ): Unit =
-    val oldVisibility = symVisibility(oldDecl)(using oldCtx)
+    val oldVisibility = symVisibility(oldDecl)
     val isMemberAccessible = oldVisibility match
       case Visibility.Private   => false
       case Visibility.Protected => openBoundary.nonEmpty
@@ -174,9 +171,11 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
 
     if !isMemberAccessible then () // OK
     else
+      val newThisType = newClass.thisType
+
       def oldIsOverridable = memberIsOverridable(oldDecl, openBoundary)(using oldCtx)
 
-      def oldKind = symKind(oldDecl)(using oldCtx)
+      def oldKind = symKind(oldDecl)
 
       oldDecl match
         case oldDecl: ClassSymbol =>
@@ -186,7 +185,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
             case Some(newDecl: ClassSymbol) =>
               analyzeClass(oldDecl, newDecl)
             case Some(newDecl: TypeSymbolWithBounds) =>
-              reportProblem(ProblemKind.IncompatibleKindChange, oldDecl, oldKind, symKind(newDecl)(using newCtx))
+              reportProblem(ProblemKind.IncompatibleKindChange, oldDecl, oldKind, symKind(newDecl))
 
         case oldDecl: TypeMemberSymbol =>
           // Search with getDecl for private members, but fall back on getMember for inherited members
@@ -196,7 +195,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
             case Some(newDecl: TypeMemberSymbol) =>
               analyzeTypeMember(oldDecl, oldIsOverridable, newThisType, newDecl)
             case Some(newDecl) =>
-              reportProblem(ProblemKind.IncompatibleKindChange, oldDecl, oldKind, symKind(newDecl)(using newCtx))
+              reportProblem(ProblemKind.IncompatibleKindChange, oldDecl, oldKind, symKind(newDecl))
 
         case _: TypeParamSymbol =>
           () // nothing to do
@@ -261,8 +260,8 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
         end if
 
       case _ =>
-        val oldKind = symKind(oldSym)(using oldCtx)
-        val newKind = symKind(newSym)(using newCtx)
+        val oldKind = symKind(oldSym)
+        val newKind = symKind(newSym)
         reportProblem(ProblemKind.IncompatibleKindChange, oldSym, oldKind, newKind)
   end analyzeTypeMember
 
@@ -275,8 +274,8 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
     checkVisibility(oldSym, newSym)
     checkMemberFinal(oldSym, oldIsOverridable, newSym)
 
-    val oldKind = symKind(oldSym)(using oldCtx)
-    val newKind = symKind(newSym)(using newCtx)
+    val oldKind = symKind(oldSym)
+    val newKind = symKind(newSym)
     val kindsOK =
       import SymbolKind.*
       (oldKind, newKind) match
@@ -365,8 +364,8 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
     new TypeTranslator(oldCtx, newCtx).translateTypeBounds(oldBounds)
 
   private def checkVisibility(oldSymbol: TermOrTypeSymbol, newSymbol: TermOrTypeSymbol): Unit =
-    val oldVisibility = symVisibility(oldSymbol)(using oldCtx)
-    val newVisibility = symVisibility(newSymbol)(using newCtx)
+    val oldVisibility = symVisibility(oldSymbol)
+    val newVisibility = symVisibility(newSymbol)
 
     if !isValidVisibilityChange(oldVisibility, newVisibility) then
       reportProblem(ProblemKind.RestrictedVisibilityChange, oldSymbol, oldVisibility, newVisibility)
@@ -445,7 +444,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
     openBoundaryMemoized.getOrElseUpdate(cls, compute)
   end classOpenBoundary
 
-  def symVisibility(symbol: TermOrTypeSymbol)(using Context): Visibility =
+  def symVisibility(symbol: TermOrTypeSymbol): Visibility =
     def isArtifactPrivate(packagePath: List[Name]): Boolean =
       artifactPrivatePackagePaths.exists(path => packagePath.startsWith(path))
 
@@ -525,16 +524,6 @@ private[tastymima] object Analyzer:
     end toString
   end SymbolKind
 
-  def classTypeRef(cls: ClassSymbol)(using Context): TypeRef =
-    cls.owner match
-      case owner: PackageSymbol => TypeRef(owner.packageRef, cls)
-      case owner: ClassSymbol   => TypeRef(classThisType(owner), cls)
-      case owner                => throw AssertionError(s"unexpected owner $owner of $cls")
-
-  /** The `ThisType` for the given class, as visible from inside this class. */
-  def classThisType(cls: ClassSymbol)(using Context): ThisType =
-    ThisType(classTypeRef(cls))
-
   /** Tests whether the given member is overridable from outside the library. */
   private def memberIsOverridable(symbol: TermOrTypeSymbol, ownerClassOpenBoundary: Set[ClassSymbol])(
     using Context
@@ -553,7 +542,7 @@ private[tastymima] object Analyzer:
       }
   end memberIsOverridable
 
-  def symKind(symbol: TermOrTypeSymbol)(using Context): SymbolKind = symbol match
+  def symKind(symbol: TermOrTypeSymbol): SymbolKind = symbol match
     case sym: TermSymbol =>
       sym.kind match
         case TermSymbolKind.Module  => SymbolKind.Module
