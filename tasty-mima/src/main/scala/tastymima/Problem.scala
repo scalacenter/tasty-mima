@@ -1,5 +1,6 @@
 package tastymima
 
+import tastyquery.Modifiers.*
 import tastyquery.Names.*
 import tastyquery.Types.*
 
@@ -28,6 +29,7 @@ final class Problem(val kind: ProblemKind, val path: List[Name], val details: Ma
 
   private def detailsString(details: Matchable): String = details match
     case details: TypeMappable => details.showBasic
+    case details: OpenLevel    => openLevelToString(details)
     case details: BeforeAfter  => s"before: ${detailsString(details.before)}; after: ${detailsString(details.after)}"
     case _                     => details.toString()
   end detailsString
@@ -39,4 +41,11 @@ end Problem
 object Problem:
   /** Used as `details` for a `Problem` when there is something to show "before" and "after". */
   final case class BeforeAfter(before: Matchable, after: Matchable)
+
+  private def openLevelToString(level: OpenLevel): String = level match
+    case OpenLevel.Final  => "final"
+    case OpenLevel.Sealed => "sealed"
+    case OpenLevel.Closed => "(default)"
+    case OpenLevel.Open   => "open"
+  end openLevelToString
 end Problem

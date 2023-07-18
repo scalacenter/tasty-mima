@@ -2,7 +2,6 @@ package tastymima
 
 import tastyquery.Contexts.*
 import tastyquery.Exceptions.*
-import tastyquery.Flags.*
 import tastyquery.Names.*
 import tastyquery.Symbols.*
 import tastyquery.Types.*
@@ -14,18 +13,18 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
     oldType match
       case oldType: NamedType =>
         oldType.prefix match
+          case oldPrefix: PackageRef =>
+            val translatedPrefix = newCtx.findPackageFromRoot(oldPrefix.fullyQualifiedName).packageRef
+            NamedType(translatedPrefix, oldType.name)
           case oldPrefix: Type =>
             val translatedPrefix = translateType(oldPrefix)
             oldType.optSymbol(using oldCtx) match
               case Some(oldSym: ClassTypeParamSymbol) =>
                 translateClassTypeParamRef(translatedPrefix, oldSym)
               case _ =>
-                NamedType(translatedPrefix, oldType.name)(using newCtx)
+                NamedType(translatedPrefix, oldType.name)
           case NoPrefix =>
             throw InvalidProgramStructureException(s"Unexpected local ref $oldType")
-
-      case oldType: PackageRef =>
-        PackageRef(oldType.fullyQualifiedName)
 
       case oldType: ThisType =>
         ThisType(translateType(oldType.tref).asInstanceOf[TypeRef])
@@ -39,22 +38,19 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
         ConstantType(oldType.value)
 
       case oldType: AppliedType =>
-        AppliedType(translateType(oldType.tycon), oldType.args.map(translateType(_)))
+        val translatedTycon = translateType(oldType.tycon)
+        val translatedArgs = oldType.args.map { arg =>
+          arg match
+            case arg: Type            => translateType(arg)
+            case arg: WildcardTypeArg => WildcardTypeArg(translateTypeBounds(arg.bounds))
+        }
+        AppliedType(translatedTycon, translatedArgs)
 
       case oldType: ByNameType =>
         ByNameType(translateType(oldType.resultType))
 
-      case oldType: TermLambdaType =>
-        oldType.companion(oldType.paramNames)(
-          { lt =>
-            translatedBinders.put(oldType, lt)
-            oldType.paramInfos.map(translateType(_))
-          },
-          lt => translateType(oldType.resultType)
-        )
-
-      case oldType: TypeLambdaType =>
-        oldType.companion(oldType.paramNames)(
+      case oldType: TypeLambda =>
+        TypeLambda(oldType.paramNames)(
           { lt =>
             translatedBinders.put(oldType, lt)
             oldType.paramInfos.map(translateTypeBounds(_))
@@ -78,7 +74,7 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
           translateType(oldType.parent),
           oldType.isStable,
           oldType.refinedName,
-          translateType(oldType.refinedType)
+          translateTypeOrMethodic(oldType.refinedType)
         )
 
       case oldType: RecType =>
@@ -97,8 +93,11 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
         val translatedCases = oldType.cases.map(translateMatchTypeCase(_))
         MatchType(translatedBound, translatedScrutinee, translatedCases)
 
-      case oldType: WildcardTypeBounds =>
-        WildcardTypeBounds(translateTypeBounds(oldType.bounds))
+      case _: NothingType =>
+        defn(using newCtx).NothingType
+
+      case _: AnyKindType =>
+        defn(using newCtx).AnyKindType
 
       case oldType: OrType =>
         OrType(translateType(oldType.first), translateType(oldType.second))
@@ -113,6 +112,30 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
         throw InvalidProgramStructureException(s"Unexpected custom transient type $oldType")
   end translateType
 
+  def translateTypeOrMethodic(oldType: TypeOrMethodic): TypeOrMethodic =
+    oldType match
+      case oldType: Type =>
+        translateType(oldType)
+
+      case oldType: MethodType =>
+        oldType.companion(oldType.paramNames)(
+          { lt =>
+            translatedBinders.put(oldType, lt)
+            oldType.paramInfos.map(translateType(_))
+          },
+          lt => translateTypeOrMethodic(oldType.resultType)
+        )
+
+      case oldType: PolyType =>
+        PolyType(oldType.paramNames)(
+          { lt =>
+            translatedBinders.put(oldType, lt)
+            oldType.paramInfos.map(translateTypeBounds(_))
+          },
+          lt => translateTypeOrMethodic(oldType.resultType)
+        )
+  end translateTypeOrMethodic
+
   def translateTypeBounds(oldBounds: TypeBounds): TypeBounds = oldBounds match
     case RealTypeBounds(low, high) => RealTypeBounds(translateType(low), translateType(high))
     case TypeAlias(alias)          => TypeAlias(translateType(alias))
@@ -120,16 +143,12 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
 
   private def translateClassTypeParamRef(translatedPrefix: Type, oldSym: ClassTypeParamSymbol): TypeRef =
     // We know that class type param counts match because of a check in `analyzeClass`
-    val typeParamIndex = withOldCtx {
-      oldSym.owner.typeParams.indexOf(oldSym)
-    }
-    val translatedSym = withNewCtx {
-      translatedPrefix match
-        case translatedPrefix: ThisType =>
-          translatedPrefix.cls.typeParams(typeParamIndex)
-        case _ =>
-          throw NotImplementedError(s"cannot translate class type param ref with non-this prefix $translatedPrefix")
-    }
+    val typeParamIndex = oldSym.owner.typeParams.indexOf(oldSym)
+    val translatedSym = translatedPrefix match
+      case translatedPrefix: ThisType =>
+        translatedPrefix.cls(using newCtx).typeParams(typeParamIndex)
+      case _ =>
+        throw NotImplementedError(s"cannot translate class type param ref with non-this prefix $translatedPrefix")
     TypeRef(translatedPrefix, translatedSym)
   end translateClassTypeParamRef
 
@@ -143,8 +162,4 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
       tmc => translateType(oldCase.result)
     )
   end translateMatchTypeCase
-
-  private def withOldCtx[A](f: Context ?=> A): A = f(using oldCtx)
-
-  private def withNewCtx[A](f: Context ?=> A): A = f(using newCtx)
 end TypeTranslator
