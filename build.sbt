@@ -74,7 +74,7 @@ lazy val tastyMiMa =
       testFrameworks += new TestFramework("munit.Framework")
     )
     .settings(
-      libraryDependencies += "ch.epfl.scala" %% "tasty-query" % "0.10.4",
+      libraryDependencies += "ch.epfl.scala" %% "tasty-query" % "0.11.0",
 
       Test / rtJarOpt := {
         for (bootClasspath <- Option(System.getProperty("sun.boot.class.path"))) yield {

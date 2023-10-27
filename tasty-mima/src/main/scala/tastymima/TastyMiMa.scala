@@ -4,7 +4,7 @@ import java.nio.file.Path
 import java.util.List as JList
 
 import tastyquery.Classpaths.*
-import tastyquery.Contexts
+import tastyquery.Contexts.*
 import tastyquery.jdk.ClasspathLoaders
 
 import tastymima.intf.{Config, Problem as IProblem, TastyMiMa as ITastyMiMa}
@@ -12,12 +12,12 @@ import tastymima.intf.{Config, Problem as IProblem, TastyMiMa as ITastyMiMa}
 final class TastyMiMa(config: Config) extends ITastyMiMa:
   def analyze(
     oldClasspath: Classpath,
-    oldClasspathEntry: Classpath.Entry,
+    oldClasspathEntry: ClasspathEntry,
     newClasspath: Classpath,
-    newClasspathEntry: Classpath.Entry
+    newClasspathEntry: ClasspathEntry
   ): List[Problem] =
-    val oldCtx = Contexts.init(oldClasspath)
-    val newCtx = Contexts.init(newClasspath)
+    val oldCtx = Context.initialize(oldClasspath)
+    val newCtx = Context.initialize(newClasspath)
 
     val oldTopSymbols = oldCtx.findSymbolsByClasspathEntry(oldClasspathEntry).toList
     val newTopSymbols = newCtx.findSymbolsByClasspathEntry(newClasspathEntry).toList
@@ -40,12 +40,12 @@ final class TastyMiMa(config: Config) extends ITastyMiMa:
       throw IllegalArgumentException("Entries must be elements of their corresponding classpatsh")
 
     val allDistinctPaths = (oldClasspath ::: newClasspath).distinct
-    val pathsToEntries = allDistinctPaths.zip(tastyquery.jdk.ClasspathLoaders.read(allDistinctPaths).entries).toMap
+    val pathsToEntries = allDistinctPaths.zip(tastyquery.jdk.ClasspathLoaders.read(allDistinctPaths)).toMap
 
-    val oldTQClasspath = Classpath(IArray.from(oldClasspath.map(pathsToEntries)))
-    val oldTQEntry = oldTQClasspath.entries(oldEntryIndex)
-    val newTQClasspath = Classpath(IArray.from(newClasspath.map(pathsToEntries)))
-    val newTQEntry = newTQClasspath.entries(newEntryIndex)
+    val oldTQClasspath = oldClasspath.map(pathsToEntries)
+    val oldTQEntry = oldTQClasspath(oldEntryIndex)
+    val newTQClasspath = newClasspath.map(pathsToEntries)
+    val newTQEntry = newTQClasspath(newEntryIndex)
 
     analyze(oldTQClasspath, oldTQEntry, newTQClasspath, newTQEntry)
   end analyze

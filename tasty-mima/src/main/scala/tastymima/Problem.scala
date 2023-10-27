@@ -13,9 +13,14 @@ final class Problem(val kind: ProblemKind, val path: List[Name], val details: Ma
   def this(kind: ProblemKind, path: List[Name]) = this(kind, path, ())
 
   val pathString: String =
-    val s1 = path.mkString(".")
-    if path.nonEmpty && path.last.isTypeName && path.last.toTypeName.wrapsObjectName then s1 + "$"
-    else s1
+    if path.isEmpty then ""
+    else
+      val init1 = path.init.map {
+        case ObjectClassTypeName(underlying) => underlying
+        case name                            => name
+      }
+      (init1 :+ path.last).mkString(".")
+  end pathString
 
   def getKind(): ProblemKind = kind
 

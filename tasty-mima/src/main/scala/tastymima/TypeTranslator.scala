@@ -7,7 +7,7 @@ import tastyquery.Symbols.*
 import tastyquery.Types.*
 
 private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
-  private val translatedBinders = new java.util.IdentityHashMap[Binders, Binders]()
+  private val translatedBinders = new java.util.IdentityHashMap[TypeBinder, TypeBinder]()
 
   def translateType(oldType: Type): Type =
     oldType match
@@ -49,6 +49,9 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
       case oldType: ByNameType =>
         ByNameType(translateType(oldType.resultType))
 
+      case oldType: RepeatedType =>
+        RepeatedType(translateType(oldType.elemType))
+
       case oldType: TypeLambda =>
         TypeLambda(oldType.paramNames)(
           { lt =>
@@ -59,7 +62,7 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
         )
 
       case oldType: ParamRef =>
-        val translatedParamBinders = translatedBinders.get(oldType.binders).nn.asInstanceOf[ParamRefBinders]
+        val translatedParamBinders = translatedBinders.get(oldType.binder).nn.asInstanceOf[ParamRefBinder]
         translatedParamBinders.paramRefs(oldType.paramNum)
 
       case oldType: AnnotatedType =>
@@ -84,7 +87,7 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
         })
 
       case oldType: RecThis =>
-        val translatedRecType = translatedBinders.get(oldType.binders).nn.asInstanceOf[RecType]
+        val translatedRecType = translatedBinders.get(oldType.binder).nn.asInstanceOf[RecType]
         translatedRecType.recThis
 
       case oldType: MatchType =>
@@ -137,8 +140,8 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
   end translateTypeOrMethodic
 
   def translateTypeBounds(oldBounds: TypeBounds): TypeBounds = oldBounds match
-    case RealTypeBounds(low, high) => RealTypeBounds(translateType(low), translateType(high))
-    case TypeAlias(alias)          => TypeAlias(translateType(alias))
+    case AbstractTypeBounds(low, high) => AbstractTypeBounds(translateType(low), translateType(high))
+    case TypeAlias(alias)              => TypeAlias(translateType(alias))
   end translateTypeBounds
 
   private def translateClassTypeParamRef(translatedPrefix: Type, oldSym: ClassTypeParamSymbol): TypeRef =

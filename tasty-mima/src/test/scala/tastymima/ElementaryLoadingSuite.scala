@@ -6,8 +6,7 @@ import tastyquery.Names.*
 
 class ElementaryLoadingSuite extends munit.FunSuite:
   test("ClassOnlyInV1") {
-    val ctx = tastyquery.Contexts.init(TestClasspaths.testLibV1Classpath)
-    given Context = ctx
+    val ctx = Context.initialize(TestClasspaths.testLibV1Classpath)
 
     val ClassOnlyInV1Class = ctx.findTopLevelClass("testlib.ClassOnlyInV1")
 
@@ -18,8 +17,7 @@ class ElementaryLoadingSuite extends munit.FunSuite:
   }
 
   test("ClassOnlyInV2") {
-    val ctx = tastyquery.Contexts.init(TestClasspaths.testLibV2Classpath)
-    given Context = ctx
+    val ctx = Context.initialize(TestClasspaths.testLibV2Classpath)
 
     val ClassOnlyInV2Class = ctx.findTopLevelClass("testlib.ClassOnlyInV2")
 
