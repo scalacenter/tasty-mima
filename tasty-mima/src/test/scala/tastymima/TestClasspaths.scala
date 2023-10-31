@@ -26,17 +26,17 @@ object TestClasspaths:
   val (testLibV1Paths, testLibV1EntryPath) = parsePaths(TestLibV1ClassPathEnvVar)
   val (testLibV2Paths, testLibV2EntryPath) = parsePaths(TestLibV2ClassPathEnvVar)
 
-  private def makeClasspathAndTestLibEntry(paths: List[Path], entryPath: Path): (Classpath, Classpath.Entry) =
+  private def makeClasspathAndTestLibEntry(paths: List[Path], entryPath: Path): (Classpath, ClasspathEntry) =
     val classpath = ClasspathLoaders.read(paths)
     val testLibEntryIndex = paths.indexOf(entryPath)
-    val testLibEntry = classpath.entries(testLibEntryIndex)
+    val testLibEntry = classpath(testLibEntryIndex)
     (classpath, testLibEntry)
   end makeClasspathAndTestLibEntry
 
   val (testLibV1Classpath, testLibV1Entry) = makeClasspathAndTestLibEntry(testLibV1Paths, testLibV1EntryPath)
   val (testLibV2Classpath, testLibV2Entry) = makeClasspathAndTestLibEntry(testLibV2Paths, testLibV2EntryPath)
 
-  def makeFilteredClasspaths(testLibPackageName: String): (Classpath, Classpath.Entry, Classpath, Classpath.Entry) =
+  def makeFilteredClasspaths(testLibPackageName: String): (Classpath, ClasspathEntry, Classpath, ClasspathEntry) =
     val (v1Classpath, v1Entry) = makeFilteredClasspath(testLibPackageName, testLibV1Classpath, testLibV1Entry)
     val (v2Classpath, v2Entry) = makeFilteredClasspath(testLibPackageName, testLibV2Classpath, testLibV2Entry)
     (v1Classpath, v1Entry, v2Classpath, v2Entry)
@@ -44,15 +44,19 @@ object TestClasspaths:
   private def makeFilteredClasspath(
     testLibPackageName: String,
     classpath: Classpath,
-    testLibEntry: Classpath.Entry
-  ): (Classpath, Classpath.Entry) =
-    val filteredEntry = Classpath.Entry(testLibEntry.packages.filter { p =>
-      p.dotSeparatedName == testLibPackageName || p.dotSeparatedName.startsWith(testLibPackageName + ".")
-    })
-    val filteredClasspath = Classpath(classpath.entries.map { entry =>
+    testLibEntry: ClasspathEntry
+  ): (Classpath, ClasspathEntry) =
+    val filteredEntry = new ClasspathEntry {
+      def listAllPackages(): List[PackageData] =
+        testLibEntry.listAllPackages().filter { p =>
+          p.dotSeparatedName == testLibPackageName || p.dotSeparatedName.startsWith(testLibPackageName + ".")
+        }
+    }
+
+    val filteredClasspath = classpath.map { entry =>
       if entry == testLibEntry then filteredEntry
       else entry
-    })
+    }
     (filteredClasspath, filteredEntry)
   end makeFilteredClasspath
 

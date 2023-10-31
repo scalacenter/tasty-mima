@@ -62,7 +62,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
 
     if !isTopAccessible then () // OK
     else
-      val path = oldTopClass.fullName.path
+      val path = oldTopClass.owner.asPackage.fullName.path :+ oldTopClass.name
       invalidStructureToOption(newCtx.findSymbolFromRoot(path).asClass) match
         case None =>
           reportProblem(ProblemKind.MissingClass, oldTopClass)
@@ -313,12 +313,15 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
   ): Unit =
     val newOpenBoundary = classOpenBoundary(newClass)(using newCtx)
 
-    // The open boundary that is in common between the old and new versions
+    /* The open boundary that is in common between the old and new versions.
+     * Since open boundaries never include local classes (by construction), we
+     * can use `fullNameOfNonLocalSymbol` to reliably identify classes.
+     */
     val commonOpenBoundary: Set[(ClassSymbol, ClassSymbol)] =
       for
         oldSubclass <- oldOpenBoundary
-        oldFullName = oldSubclass.fullName
-        newSubclass <- newOpenBoundary.find(_.fullName == oldFullName)
+        oldFullName = fullNameOfNonLocalSymbol(oldSubclass)
+        newSubclass <- newOpenBoundary.find(c => fullNameOfNonLocalSymbol(c) == oldFullName)
       yield (oldSubclass, newSubclass)
 
     if commonOpenBoundary.isEmpty then
@@ -524,6 +527,17 @@ private[tastymima] object Analyzer:
     end toString
   end SymbolKind
 
+  private def fullNameOfNonLocalSymbol(sym: Symbol): List[UnsignedName] =
+    /* This actually gives a result even for local symbols.
+     * In that case it is not guaranteed to be unique.
+     */
+    def loop(sym: Symbol, acc: List[UnsignedName]): List[UnsignedName] = sym match
+      case sym: TermOrTypeSymbol => loop(sym.owner, sym.name :: acc)
+      case sym: PackageSymbol    => sym.fullName.path ::: acc.reverse
+
+    loop(sym, Nil)
+  end fullNameOfNonLocalSymbol
+
   /** Tests whether the given member is overridable from outside the library. */
   private def memberIsOverridable(symbol: TermOrTypeSymbol, ownerClassOpenBoundary: Set[ClassSymbol])(
     using Context
@@ -617,9 +631,9 @@ private[tastymima] object Analyzer:
     using Context
   ): Boolean =
     (oldBounds, newBounds) match
-      case (RealTypeBounds(oldLow, oldHigh), RealTypeBounds(newLow, newHigh)) =>
-        if allowNarrower then oldLow.isSubType(newLow) && newHigh.isSubType(oldHigh)
-        else oldLow.isSameType(newLow) && newHigh.isSameType(oldHigh)
+      case (oldBounds: AbstractTypeBounds, newBounds: AbstractTypeBounds) =>
+        if allowNarrower then oldBounds.contains(newBounds)
+        else oldBounds.isSameBounds(newBounds)
       case (TypeAlias(oldAlias), TypeAlias(newAlias)) =>
         oldAlias.isSameType(newAlias)
       case _ =>
