@@ -1,9 +1,5 @@
 # TASTy-MiMa
 
-**Disclaimer:** TASTy-MiMa is a young project.
-At this point, you are likely going to run into bugs.
-Please report issues you find.
-
 TASTy-MiMa (for TASTy Migration Manager) is a tool for identifying TASTy incompatibilities in Scala libraries.
 It is pronounced "tasty MEE-ma"
 

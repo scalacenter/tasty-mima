@@ -61,6 +61,26 @@ lazy val tastyMiMaInterface =
       name := "tasty-mima-interface",
       autoScalaLibrary := false,
       crossPaths := false,
+
+      tastyMiMaPreviousArtifacts := mimaPreviousArtifacts.value,
+      tastyMiMaConfig ~= { prev =>
+        prev
+          .withMoreArtifactPrivatePackages(java.util.Arrays.asList(
+            "tastymima.intf",
+          ))
+      },
+
+      /* tasty-query needs the scala-library.jar on the classpath, but this is
+       * a pure-Java library so it is missing. We abuse sbt-tasty-mima's setting
+       * `tastyMiMaJavaBootClasspath` to add it only for tasty-mima.
+       */
+      tastyMiMaJavaBootClasspath += {
+        val tastyMiMaDeps = Attributed.data((LocalProject("tastyMiMa") / Compile / dependencyClasspath).value)
+        val stdlib = tastyMiMaDeps.find(_.toString().contains("scala-library")).getOrElse {
+          throw new MessageOnlyException(tastyMiMaDeps.mkString("Could not find the scala-library in:\n", "\n", ""))
+        }
+        stdlib.toPath()
+      },
     )
 
 lazy val tastyMiMa =
@@ -74,7 +94,7 @@ lazy val tastyMiMa =
       testFrameworks += new TestFramework("munit.Framework")
     )
     .settings(
-      libraryDependencies += "ch.epfl.scala" %% "tasty-query" % "0.11.0",
+      libraryDependencies += "ch.epfl.scala" %% "tasty-query" % "1.0.0",
 
       Test / rtJarOpt := {
         for (bootClasspath <- Option(System.getProperty("sun.boot.class.path"))) yield {
@@ -106,7 +126,15 @@ lazy val tastyMiMa =
           "TASTYMIMA_TEST_LIBV2_CLASSPATH" -> cpLibV2,
           "TASTYMIMA_CLASSPATH" -> tastyMiMaCp,
         )
-      }
+      },
+
+      tastyMiMaPreviousArtifacts := mimaPreviousArtifacts.value,
+      tastyMiMaConfig ~= { prev =>
+        prev
+          .withMoreArtifactPrivatePackages(java.util.Arrays.asList(
+            "tastymima",
+          ))
+      },
     )
     .settings(
       fork := true,
