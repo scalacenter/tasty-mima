@@ -255,7 +255,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
           import tastyquery.SourceLanguage.Scala3
           val oldErasedAlias = ErasedTypeRef.erase(oldAlias, Scala3)(using oldCtx)
           val newErasedAlias = ErasedTypeRef.erase(newAlias, Scala3)(using newCtx)
-          if oldErasedAlias.toSigFullName != newErasedAlias.toSigFullName then
+          if !erasedTypesCorrespond(oldErasedAlias, newErasedAlias) then
             reportIncompatibleTypeChange(oldErasedAlias, newErasedAlias)
         end if
 
@@ -639,4 +639,14 @@ private[tastymima] object Analyzer:
       case _ =>
         false
   end isCompatibleTypeBoundsChange
+
+  @tailrec
+  private def erasedTypesCorrespond(tp1: ErasedTypeRef, tp2: ErasedTypeRef): Boolean = (tp1, tp2) match
+    case (ErasedTypeRef.ClassRef(cls1), ErasedTypeRef.ClassRef(cls2)) =>
+      pathOf(cls1) == pathOf(cls2)
+    case (ErasedTypeRef.ArrayTypeRef(base1, dims1), ErasedTypeRef.ArrayTypeRef(base2, dims2)) =>
+      dims1 == dims2 && erasedTypesCorrespond(base1, base2)
+    case _ =>
+      false
+  end erasedTypesCorrespond
 end Analyzer
