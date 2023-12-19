@@ -28,7 +28,7 @@ inThisBuild(Def.settings(
     Developer("bishabosha", "Jamie Thompson", "bishbashboshjt@gmail.com", url("https://github.com/bishabosha")),
   ),
 
-  versionPolicyIntention := Compatibility.BinaryCompatible,
+  versionPolicyIntention := Compatibility.BinaryAndSourceCompatible,
   // Ignore dependencies to internal modules whose version is like `1.2.3+4...` (see https://github.com/scalacenter/sbt-version-policy#how-to-integrate-with-sbt-dynver)
   versionPolicyIgnoredInternalDependencyVersions := Some("^\\d+\\.\\d+\\.\\d+\\+\\d+".r),
 ))
