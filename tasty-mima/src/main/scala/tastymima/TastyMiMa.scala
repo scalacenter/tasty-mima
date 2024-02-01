@@ -2,6 +2,10 @@ package tastymima
 
 import java.nio.file.Path
 import java.util.List as JList
+import java.util.concurrent.Executors
+
+import scala.concurrent.*
+import scala.concurrent.duration.Duration
 
 import tastyquery.Classpaths.*
 import tastyquery.Contexts.*
@@ -16,15 +20,38 @@ final class TastyMiMa(config: Config) extends ITastyMiMa:
     newClasspath: Classpath,
     newClasspathEntry: ClasspathEntry
   ): List[Problem] =
-    val oldCtx = Context.initialize(oldClasspath)
-    val newCtx = Context.initialize(newClasspath)
+    val disableParallel = Option(System.getenv("TASTY_MIMA_PARALLEL")).exists(_.nn.equalsIgnoreCase("false"))
+    val ec =
+      if disableParallel then ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor().nn)
+      else ExecutionContext.global
 
-    val oldTopSymbols = oldCtx.findSymbolsByClasspathEntry(oldClasspathEntry).toList
-    val newTopSymbols = newCtx.findSymbolsByClasspathEntry(newClasspathEntry).toList
+    given ExecutionContext = ec
 
-    val analyzer = new Analyzer(config, oldCtx, newCtx)
-    analyzer.analyzeTopSymbols(oldTopSymbols, newTopSymbols)
-    analyzer.allProblems
+    System.err.nn.println("---")
+    val start = System.nanoTime()
+    val oldCtxAndTopSymbols = Future {
+      val oldCtx = Context.initialize(oldClasspath)
+      val oldTopSymbols = oldCtx.findSymbolsByClasspathEntry(oldClasspathEntry).toList
+      (oldCtx, oldTopSymbols)
+    }
+
+    val newCtxAndTopSymbols = Future {
+      val newCtx = Context.initialize(newClasspath)
+      val newTopSymbols = newCtx.findSymbolsByClasspathEntry(newClasspathEntry).toList
+      (newCtx, newTopSymbols)
+    }
+
+    val resultFuture =
+      for
+        (oldCtx, oldTopSymbols) <- oldCtxAndTopSymbols
+        (newCtx, newTopSymbols) <- newCtxAndTopSymbols
+        _ = System.err.nn.println((System.nanoTime() - start) / 1000L)
+        problems <- new Analyzer(config, oldCtx, newCtx).analyzeTopSymbols(oldTopSymbols, newTopSymbols)
+      yield
+        System.err.nn.println((System.nanoTime() - start) / 1000L)
+        problems
+
+    Await.result(resultFuture, Duration.Inf)
   end analyze
 
   def analyze(

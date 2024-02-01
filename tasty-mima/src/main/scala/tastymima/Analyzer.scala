@@ -1,8 +1,11 @@
 package tastymima
 
+import java.util.concurrent.atomic.AtomicReference
+
 import scala.annotation.tailrec
 
 import scala.collection.mutable
+import scala.concurrent.*
 
 import tastyquery.Contexts.*
 import tastyquery.Exceptions.*
@@ -27,22 +30,37 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
     for stringPath <- config.getArtifactPrivatePackages().nn.asScala.toList
     yield stringPath.split('.').toList.map(termName(_))
 
-  private val _problems = mutable.ListBuffer.empty[Problem]
+  private val _problems = new AtomicReference[List[Problem]](Nil)
 
-  def analyzeTopSymbols(oldTopSymbols: List[Symbol], newTopSymbols: List[Symbol]): Unit =
-    for topSymbol <- oldTopSymbols do
-      protect(topSymbol) {
-        topSymbol match
-          case topClass: ClassSymbol => analyzeTopClass(topClass)
-          case _                     => ()
+  def analyzeTopSymbols(oldTopSymbols: List[Symbol], newTopSymbols: List[Symbol])(
+    using ExecutionContext
+  ): Future[List[Problem]] =
+    val allDoneFuture: Future[List[Unit]] = Future.traverse(oldTopSymbols) { topSymbol =>
+      Future {
+        System.err.nn.println(s"start $topSymbol")
+        protect(topSymbol) {
+          topSymbol match
+            case topClass: ClassSymbol => analyzeTopClass(topClass)
+            case _                     => ()
+        }
+        System.err.nn.println(s"end $topSymbol")
       }
+    }
+
+    for _ <- allDoneFuture yield
+      val finalProblems = _problems.get().nn
+
+      // Sort the problems for determinism
+      finalProblems.sortWith { (p1, p2) =>
+        val cmpPath = p1.pathString.compareTo(p2.pathString)
+        if cmpPath != 0 then cmpPath < 0
+        else p1.kind.ordinal() < p2.kind.ordinal()
+      }
+    end for
   end analyzeTopSymbols
 
-  def allProblems: List[Problem] =
-    _problems.toList
-
   private def reportProblem(problem: Problem): Unit =
-    if !problemFilters.exists(_(problem)) then _problems += problem
+    if !problemFilters.exists(_(problem)) then _problems.updateAndGet(prev => problem :: prev.nn)
 
   private def reportProblem(kind: ProblemKind, path: List[Name]): Unit =
     reportProblem(Problem(kind, path))
