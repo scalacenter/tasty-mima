@@ -3,7 +3,7 @@ val rtJarOpt = taskKey[Option[String]]("Path to rt.jar if it exists")
 val javalibEntry = taskKey[String]("Path to rt.jar or \"jrt:/\"")
 
 inThisBuild(Def.settings(
-  crossScalaVersions := Seq("3.4.0"),
+  crossScalaVersions := Seq("3.5.0"),
   scalaVersion := crossScalaVersions.value.head,
 
   scalacOptions ++= Seq(
@@ -28,9 +28,12 @@ inThisBuild(Def.settings(
     Developer("bishabosha", "Jamie Thompson", "bishbashboshjt@gmail.com", url("https://github.com/bishabosha")),
   ),
 
-  versionPolicyIntention := Compatibility.BinaryAndSourceCompatible,
+  versionPolicyIntention := Compatibility.BinaryCompatible,
   // Ignore dependencies to internal modules whose version is like `1.2.3+4...` (see https://github.com/scalacenter/sbt-version-policy#how-to-integrate-with-sbt-dynver)
   versionPolicyIgnoredInternalDependencyVersions := Some("^\\d+\\.\\d+\\.\\d+\\+\\d+".r),
+
+  // Temporary until we upgrade to an sbt-tasty-mima that supports Scala 3.5.x out of the box
+  tastyMiMaTastyQueryVersionOverride := Some("1.4.0"),
 ))
 
 val commonSettings = Seq(
@@ -44,7 +47,7 @@ val strictCompileSettings = Seq(
   scalacOptions ++= Seq(
     "-Xfatal-warnings",
     "-Yexplicit-nulls",
-    "-Ysafe-init",
+    "-Wsafe-init",
     "-source:future",
   ),
 )
@@ -94,7 +97,7 @@ lazy val tastyMiMa =
       testFrameworks += new TestFramework("munit.Framework")
     )
     .settings(
-      libraryDependencies += "ch.epfl.scala" %% "tasty-query" % "1.3.0",
+      libraryDependencies += "ch.epfl.scala" %% "tasty-query" % "1.4.0",
 
       Test / rtJarOpt := {
         for (bootClasspath <- Option(System.getProperty("sun.boot.class.path"))) yield {
