@@ -46,6 +46,9 @@ private[tastymima] final class TypeTranslator(oldCtx: Context, newCtx: Context):
         }
         AppliedType(translatedTycon, translatedArgs)
 
+      case oldType: FlexibleType =>
+        FlexibleType(translateType(oldType.nonNullableType))
+
       case oldType: ByNameType =>
         ByNameType(translateType(oldType.resultType))
 
