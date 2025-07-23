@@ -22,7 +22,7 @@ jobs:
     - name: Set up JDK ${{ matrix.java }}
       uses: coursier/setup-action@v1
       with:
-        jvm: temurin:1.8
+        jvm: temurin:1.${{ matrix.java }}
         apps: sbt
     - name: Run tests
       run: sbt tastyMiMa/test
