@@ -406,7 +406,7 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
       case _ => false
   end isValidVisibilityChange
 
-  private val openBoundaryMemoized = mutable.AnyRefMap.empty[ClassSymbol, Set[ClassSymbol]]
+  private val openBoundaryMemoized = mutable.HashMap.empty[ClassSymbol, Set[ClassSymbol]]
 
   /** Returns the "open boundary" of a class.
     *
