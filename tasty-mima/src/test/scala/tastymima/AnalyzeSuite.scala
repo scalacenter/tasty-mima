@@ -13,12 +13,17 @@ class AnalyzeSuite extends munit.FunSuite:
   import ProblemKind as PK
 
   def problemsInPackage(packageName: String, config: Config): List[Problem] =
-    val fullPackageName = "testlib." + packageName.name
-    val classpaths = TestClasspaths.makeFilteredClasspaths(fullPackageName)
-    new TastyMiMa(config).analyze(classpaths._1, classpaths._2, classpaths._3, classpaths._4)
+    problemsInFullPackage("testlib." + packageName.name, config)
 
   def problemsInPackage(packageName: String): List[Problem] =
     problemsInPackage(packageName, new Config())
+
+  def problemsInFullPackage(fullPackageName: String, config: Config): List[Problem] =
+    val classpaths = TestClasspaths.makeFilteredClasspaths(fullPackageName)
+    new TastyMiMa(config).analyze(classpaths._1, classpaths._2, classpaths._3, classpaths._4)
+
+  def problemsInFullPackage(fullPackageName: String): List[Problem] =
+    problemsInFullPackage(fullPackageName, new Config())
 
   def assertProblems(using munit.Location)(actualProblems: List[Problem])(
     expectedProblemMatchers: ProblemMatcher*
@@ -439,6 +444,15 @@ class AnalyzeSuite extends munit.FunSuite:
     assertProblems(problems)(
       PM(PK.IncompatibleTypeChange, "testlib.privatepackages.PrivatePackages.publicVal"),
       PM(PK.IncompatibleTypeChange, "testlib.privatepackages.PrivatePackages.outerPackagePrivateVal")
+    )
+  }
+
+  test("empty package #61") {
+    val problems = problemsInFullPackage("")
+
+    assertProblems(problems)(
+      PM(PK.MissingClass, "ClassInEmptyPackageOnlyV1"),
+      PM(PK.MissingTermMember, "ClassInEmptyPackage.missingVal"),
     )
   }
 
