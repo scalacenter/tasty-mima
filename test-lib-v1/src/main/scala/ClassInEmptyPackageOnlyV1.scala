@@ -1,0 +1,1 @@
+class ClassInEmptyPackageOnlyV1

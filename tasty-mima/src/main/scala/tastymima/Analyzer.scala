@@ -62,12 +62,16 @@ private[tastymima] final class Analyzer(val config: Config, val oldCtx: Context,
 
     if !isTopAccessible then () // OK
     else
-      val path = oldTopClass.owner.asPackage.fullName.path :+ oldTopClass.name
-      invalidStructureToOption(newCtx.findSymbolFromRoot(path).asClass) match
+      val oldPackage = oldTopClass.owner.asPackage
+      val newPackageOpt =
+        if oldPackage.name == nme.EmptyPackageName then Some(newCtx.defn.EmptyPackage)
+        else invalidStructureToOption(newCtx.findPackageFromRoot(oldPackage.fullName))
+
+      newPackageOpt.flatMap(_.getDecl(oldTopClass.name)(using newCtx)) match
         case None =>
           reportProblem(ProblemKind.MissingClass, oldTopClass)
         case Some(newTopClass) =>
-          analyzeClass(oldTopClass, newTopClass)
+          analyzeClass(oldTopClass, newTopClass.asClass)
   end analyzeTopClass
 
   private def analyzeClass(oldClass: ClassSymbol, newClass: ClassSymbol): Unit =
@@ -594,7 +598,7 @@ private[tastymima] object Analyzer:
   end isActuallyAbstractIn
 
   def pathOf(symbol: Symbol): List[Name] =
-    if symbol.isPackage && symbol.asPackage.isRootPackage then Nil
+    if symbol.isPackage && (symbol.asPackage.isRootPackage || symbol.name == nme.EmptyPackageName) then Nil
     else
       val owner = symbol.owner match
         case owner: DeclaringSymbol => owner
